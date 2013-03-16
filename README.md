@@ -6,3 +6,4 @@ Pack of utilities minified with LuaSrcDiet for ComputerCraft. Eventually will tu
 #Installation
     pastebin get EpBWcHWF install
     install
+    reboot
