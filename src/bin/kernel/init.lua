@@ -20,12 +20,10 @@ rawset(_G,'require',loadreq.require)
 rawset(_G,'include',loadreq.include)
 
 loadreq.vars.paths=loadreq.vars.paths:gsub('%?',loc..'bin/%?')
-if not fs.exists(loc..'startup') then
-	fs.delete(loc..'startup')
-	f=fs.open(loc..'startup','w')
-	f.write(string.format("shell.run('%s')",FILE_PATH))
-	f.close()
-end
+fs.delete(loc..'startup')
+f=fs.open(loc..'startup','w')
+f.write(string.format("shell.run('%s')",FILE_PATH))
+f.close()
 
 
 
