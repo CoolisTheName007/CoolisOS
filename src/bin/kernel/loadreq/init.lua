@@ -38,7 +38,7 @@ local function direct(g,s)
 end
 --add your finders here: must take (p,s) where p is where to search and s is what to search for.It must return a path.
 vars.finders={direct}
-vars.paths='bin/?/init.lua;bin/?.lua'
+vars.paths='?/init.lua;?.lua'
 
 --helper vars for lua_requirer; other requirers may index theirs vars in loadreq.vars
 vars.lua_requirer={

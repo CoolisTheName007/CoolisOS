@@ -10,21 +10,24 @@ rawset(_G,'loadfile',function( _sFile )
 end)
 
 local loc = shell.getRunningProgram()
-loc = loc:sub(1, loc:len() - fs.getName(loc):len())
-FILE_PATH=loc..'/'..'bin/kernel/init.lua'
 
-os.loadAPI(loc..'/bin/kernel/loadreq/init.lua')
-loadreq.vars.path=loadreq.vars.path:gsub('%?',loc..'/%?')
+loc = loc:match'(.*)bin/kernel/init%.lua'
+FILE_PATH=loc..'bin/kernel/init.lua'
 
-fs.delete(loc..'/startup')
-f=fs.open(loc..'/startup','w')
-f.write(string.format("shell.run(%s)",FILE_PATH))
-f.close()
-
+os.loadAPI(loc..'bin/kernel/loadreq/init.lua')
 rawset(_G,'loadreq',_G['init.lua'])
 rawset(_G,'init.lua',nil)
 rawset(_G,'require',loadreq.require)
 rawset(_G,'include',loadreq.include)
+
+loadreq.vars.paths=loadreq.vars.paths:gsub('%?',loc..'bin/%?')
+
+fs.delete(loc..'startup')
+f=fs.open(loc..'startup','w')
+f.write(string.format("shell.run('%s')",FILE_PATH))
+f.close()
+
+
 
 
 local string=string
