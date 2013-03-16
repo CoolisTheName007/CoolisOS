@@ -4,5 +4,9 @@ shell.run('rm CoolisOS')
 shell.run('git CoolisTheName007 CoolisOS / dist/CoolisOS-1.0 master')
 shell.run('CoolisOS/dist/CoolisOS-1.0/bin/kernel/init.lua')
 shell.run('cp CoolisOS/dist/CoolisOS-1.0/startup startup')
+local label=os.getComputerLabel()
+if label=='' or not label then
+	os.setComputerLabel('labeled-'..os.getComputerID())
+end
 
 
