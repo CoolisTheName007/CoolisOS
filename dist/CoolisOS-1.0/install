@@ -1,2 +1,0 @@
-local loc = shell.getRunningProgram()
-loc = loc:sub(1, loc:len() - fs.getName(loc):len())

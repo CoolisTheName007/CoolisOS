@@ -7,12 +7,19 @@ return t,a
 end
 return nil,"File not found"
 end)
-os.loadAPI'bin/kernel/loadreq/init.lua'
+local e=shell.getRunningProgram()
+e=e:sub(1,e:len()-fs.getName(e):len())
+FILE_PATH=e..'/'..'bin/kernel/init.lua'
+os.loadAPI(e..'/bin/kernel/loadreq/init.lua')
+loadreq.vars.path=loadreq.vars.path:gsub('%?',e..'/%?')
+fs.delete(e..'/startup')
+f=fs.open(e..'/startup','w')
+f.write(string.format("shell.run(%s)",FILE_PATH))
+f.close()
 rawset(_G,'loadreq',_G['init.lua'])
 rawset(_G,'init.lua',nil)
 rawset(_G,'require',loadreq.require)
 rawset(_G,'include',loadreq.include)
-FILE_PATH='os/main'
 local s=string
 local e,i,o=rawset,rawget,type
 local a=getmetatable

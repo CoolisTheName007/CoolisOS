@@ -1,7 +1,0 @@
-while true do
-	net.queueEvent(1,'key','a')
-	local t=os.clock()
-	while os.clock()-t<1 do
-	
-	end     
-end
