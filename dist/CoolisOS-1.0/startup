@@ -1,0 +1,1 @@
+shell.run('bin/kernel/init.lua')
