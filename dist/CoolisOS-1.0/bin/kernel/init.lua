@@ -7,19 +7,18 @@ return t,a
 end
 return nil,"File not found"
 end)
-local e=shell.getRunningProgram()
-e=e:sub(1,e:len()-fs.getName(e):len())
-FILE_PATH=e..'/'..'bin/kernel/init.lua'
-os.loadAPI(e..'/bin/kernel/loadreq/init.lua')
-loadreq.vars.path=loadreq.vars.path:gsub('%?',e..'/%?')
-fs.delete(e..'/startup')
-f=fs.open(e..'/startup','w')
-f.write(string.format("shell.run(%s)",FILE_PATH))
-f.close()
+FILE_PATH=shell.getRunningProgram()
+loc=FILE_PATH:match'(.*)bin/kernel/init%.lua'
+os.loadAPI(loc..'bin/kernel/loadreq/init.lua')
 rawset(_G,'loadreq',_G['init.lua'])
 rawset(_G,'init.lua',nil)
 rawset(_G,'require',loadreq.require)
 rawset(_G,'include',loadreq.include)
+loadreq.vars.paths=loadreq.vars.paths:gsub('%?',loc..'bin/%?')
+fs.delete(loc..'startup')
+f=fs.open(loc..'startup','w')
+f.write(string.format("shell.run('%s')",FILE_PATH))
+f.close()
 local s=string
 local e,i,o=rawset,rawget,type
 local a=getmetatable

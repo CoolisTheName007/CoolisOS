@@ -27,7 +27,7 @@ return e
 end
 end
 vars.finders={i}
-vars.paths='bin/?/init.lua;bin/?.lua'
+vars.paths='?/init.lua;?.lua'
 vars.lua_requirer={
 required={},
 required_envs={},
