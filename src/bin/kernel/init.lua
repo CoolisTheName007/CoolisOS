@@ -1,4 +1,5 @@
 
+---one patch
 rawset(_G,'loadfile',function( _sFile )
 	local file = fs.open( _sFile, "r" )
 	if file then
@@ -9,25 +10,18 @@ rawset(_G,'loadfile',function( _sFile )
 	return nil, "File not found"
 end)
 
-FILE_PATH = shell.getRunningProgram()
-
-loc = FILE_PATH:match'(.*)bin/kernel/init%.lua'
-
-os.loadAPI(loc..'bin/kernel/loadreq/init.lua')
+---set up of INSTALL_PATH and module resolution
+FILE_PATH=({...})[1]
+local loc=(FILE_PATH:match'(.*)bin/kernel/init%.lua'):sub(1,-2)
+rawset(_G,'INSTALL_PATH',loc)
+os.loadAPI(fs.combine(INSTALL_PATH,'bin/kernel/loadreq/init.lua'))
 rawset(_G,'loadreq',_G['init.lua'])
 rawset(_G,'init.lua',nil)
 rawset(_G,'require',loadreq.require)
 rawset(_G,'include',loadreq.include)
+loadreq.vars.paths=loadreq.vars.paths:gsub('%?',fs.combine(INSTALL_PATH,'bin')..'/%?')..';'..loadreq.vars.paths
 
-loadreq.vars.paths=loadreq.vars.paths:gsub('%?',loc..'bin/%?')
-fs.delete(loc..'startup')
-f=fs.open(loc..'startup','w')
-f.write(string.format("shell.run('%s')",FILE_PATH))
-f.close()
-
-
-
-
+---patches
 local string=string
 
 local rawset, rawget,type=rawset, rawget,type
@@ -63,7 +57,10 @@ local function setmetatable( _o, _t )
 	end
 end
 rawset(_G,'setmetatable',setmetatable)
+---
 
+
+--global modules and utilities
 rawset(_G,'log',require'kernel.log')
 require'kernel.log.store'
 
@@ -77,6 +74,8 @@ local globals={
 	net=require'kernel.net',
 	util=require'kernel.util',
 	sched=require'kernel.sched',
+	class=require'kernel.class',
+	log=require'kernel.log',
 }
 
 for i,v in pairs(globals) do
