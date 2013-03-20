@@ -4,6 +4,7 @@ function Opt:__init(t,typ)
 	self.val=t
 end
 function Opt:drop(dst,src)
+  local typ=self.typ
 	if typ=='raw' then return self.val
 	elseif typ=='clone' then return self.val:clone()
 	elseif typ=='table' then

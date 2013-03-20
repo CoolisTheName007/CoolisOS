@@ -44,6 +44,13 @@ end
 -- Internal counter for unique ids generation
 local unique_id_counter = -1
 
+-- ========= Others
+function _.with(handle,f,...)
+  local ok, err=pcall(f,handle,...)
+  if handle.close then handle:close() end
+  return ok,err
+end
+
 -- ========= Scheduler utilities
 function _.wait(f,match,...)
 	local r,b

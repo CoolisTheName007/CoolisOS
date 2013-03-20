@@ -7,7 +7,7 @@ local string=string
 local loadfile=loadfile
 local error=error
 
-local log,search
+local log
 
 function getNameExpansion(s) --returns name and expansion from a filepath @s; special cases: ''->'',nil; '.'-> '','';
 	local _,_,name,expa=string.find(s, '([^%./\\]*)%.(.*)$')
@@ -19,16 +19,16 @@ function getDir(s) --returns directory from filepath @s
 end
 
 vars={} --to allow edition
-vars.loaded={}
-function loadFile(path,_reload) --@_reload forces reload
-	if (vars.loaded[path]==nil) or _reload then
-		local fnFile, err = loadfile( path )
-		if not fnFile then error('load:'..'path=:'..path..'| '..(err or 'nil'),2) end
-		vars.loaded[path]=fnFile
-	end
-	return vars.loaded[path]
-end
-
+--vars.loaded={}
+--function loadFile(path,_reload) --@_reload forces reload
+--	if (vars.loaded[path]==nil) or _reload then
+--		local fnFile, err = loadfile( path )
+--		if not fnFile then error('load:'..'path=:'..path..'| '..(err or 'nil'),2) end
+--		vars.loaded[path]=fnFile
+--	end
+--	return vars.loaded[path]
+--end
+--
 ---iterator; replaces '?' in g by s and returns the resulting path if it is a file.
 local function direct(g,s)
 	g=string.gsub(g,'%?',s)
@@ -60,7 +60,7 @@ calls the function with unpack(@args) and returns and saves either
 	a shallow copy of the functions environment
 ]]
 
-function lua_requirer(path,cenv,env,renv,rerun,args)
+function lua_requirer(path,cenv,env,renv,rerun,...)
 	local err_prefix='lua_requirer:'
 	local vars=vars.lua_requirer
 	local _,ext=getNameExpansion(path)
@@ -80,38 +80,44 @@ function lua_requirer(path,cenv,env,renv,rerun,args)
 		return nil,err_prefix..'loadfile:'..e
 	end
 	env=env or {}
-	env.FILE_PATH=path
+	env._FILE_PATH=path
 	vars.required_envs[path]=env
 	setfenv(f,env)
 	renv=renv or _G
 	setmetatable(env,{__index=renv})
 	vars.requiring[path]=true
-	local r=f(args and unpack(args)) --raises useful error/traceback, no need to tamper with
+	local ok,r=pcall(f,...)
 	vars.requiring[path]=nil
-	if r then
+	if not ok then
+		return nil,err_prefix..'while calling module:'..tostring(r)
+	elseif r then
 		vars.required[path]=r
 		return r
 	else
 		local t={}
-		for i,v in pairs(env) do t[i]=v end
+		for i,v in pairs(env) do
+			if type(i)=='string' and i:sub(1,1)~='_' then
+				t[i]=v
+			end
+		end
 		vars.required[path]=t
 		return t
 	end
 end
 
 --replacement for os_loadAPI that keeps APIS to the caller's env
-old_os_loadAPI=os.loadAPI
-new_os_loadAPI=function(p)
-	local cenv=getfenv(2)
-	local r,e=loadreq.lua_requirer(p,cenv)
-	if r then
-		local name=getNameExpansion(p)
-		protect(r)
-		cenv[p]=r
-	else
-		error('os.loadAPI(loadreq version):'..e..'\n'..'path='..p,2)
-	end
-end
+--local old_os_loadAPI=os.loadAPI
+--new_os_loadAPI=function(p)
+--	local cenv=getfenv(2)
+--	local r,e=loadreq.lua_requirer(p,cenv)
+--	if r then
+--		local name=getNameExpansion(p)
+--		protect(r)
+--		cenv[p]=r
+--	else
+--		error('os.loadAPI(loadreq version):'..e..'\n'..'path='..p,2)
+--	end
+--end
 
 --[[add your requirers here;
 each must 
@@ -136,10 +142,10 @@ local function _find(s,paths,caller_env)
 	if paths then
 	elseif caller_env.REQUIRE_PATH then
 		paths=caller_env.REQUIRE_PATH
-	elseif caller_env.PACKAGE_NAME and caller_env.FILE_PATH then
-		paths=sufix(string.match(caller_env.FILE_PATH,'^(.-'..caller_env.PACKAGE_NAME..')'))..';'..vars.paths
-	elseif	caller_env.FILE_PATH then
-		paths=sufix(getDir(caller_env.FILE_PATH))..';'..vars.paths
+	elseif caller_env.PACKAGE_NAME and caller_env._FILE_PATH then
+		paths=sufix(string.match(caller_env._FILE_PATH,'^(.-'..caller_env.PACKAGE_NAME..')'))..';'..vars.paths
+	elseif	caller_env._FILE_PATH then
+		paths=sufix(getDir(caller_env._FILE_PATH))..';'..vars.paths
 	else
 		paths=vars.paths
 	end
@@ -160,7 +166,7 @@ local function _find(s,paths,caller_env)
 			
 		end
 	end
-	table.insert(err,'_find:file not found:'..s..'\ncaller path='..(caller_env.FILE_PATH or 'not available'))
+	table.insert(err,'_find:file not found:'..s..'\ncaller path='..(caller_env._FILE_PATH or 'not available'))
 	local serr=table.concat(err,'\n')
 	if log then log('loadreq','ERROR','_find:%s',serr) end
 	return nil,serr
@@ -190,21 +196,21 @@ end
 @paths is a string of paths separated by ';' where there can be '?'
 -acquires @paths variable, by the following order;
 	0-arg @paths
-		Example (FILE_PATH='myFolder/myFolder2/myAPI.lua'):
+		Example (_FILE_PATH='myFolder/myFolder2/myAPI.lua'):
 		myAPI=require('myFolder2.myAPI','myFolder/?.lua') 
 	1-REQUIRE_PATH in the caller's path, if existent
-		Example (FILE_PATH='myFolder/myFolder2/myAPI.lua'):
+		Example (_FILE_PATH='myFolder/myFolder2/myAPI.lua'):
 		REQUIRE_PATH='myFolder/?.lua'
 		myAPI=require'myFolder2.myAPI' 
-	2-directory named PACKAGE_NAME in FILE_PATH, if defined in the caller's environment
+	2-directory named PACKAGE_NAME in _FILE_PATH, if defined in the caller's environment
 	with sufixes appended by @sufix and concatenated with @vars.paths.
-	FILE_PATH is set, for instance, by lua_loader in the files it loads.
-		Example (FILE_PATH='myFolder/myFolder3/myFolder/runningFile'):
+	_FILE_PATH is set, for instance, by lua_loader in the files it loads.
+		Example (_FILE_PATH='myFolder/myFolder3/myFolder/runningFile'):
 		PACKAGE_NAME='myFolder'
 		myAPI=require'myAPI' --@paths is 'myFolder/?;myFolder/?.lua;myFolder/?/init.lua;myFolder/?/?.lua;myFolder/?/?;myFolder'
-	3-directory of FILE_PATH, if defined
+	3-directory of _FILE_PATH, if defined
 	with sufixes appended by @sufix and concatenated with @vars.paths.
-		Example (FILE_PATH='myFolder/runningFile'):
+		Example (_FILE_PATH='myFolder/runningFile'):
 		myAPI=require'myAPI' --@paths is 'myFolder/?;myFolder/?.lua;myFolder/?/init.lua;myFolder/?/?.lua;myFolder/?/?;myFolder'
 	4-@vars.paths as set in loadreq.vars.paths
 -replaces '.' in @s by '/' and '..' by '.'
@@ -244,10 +250,8 @@ function include(s,paths,...)
 	end
 end
 
-function reload(s,paths,...)
-	local args=args or {...}
-	if args[3]==nil then args[3]=true end
-	return require(s,paths,unpack(args))
+function reload(s,paths,caller_env,env,renv,rerun,...)
+	return require(s,paths,env,renv,true,...)
 end
 
 --protection utilities; these are meant more as a warning than OS-grade protection
@@ -289,7 +293,7 @@ function permaProtect(_t) --same as the os.loadAPI does
 	end
 	setmetatable( _t, {
 		__newindex = function( t, k, v )
-			if bProtected then
+			if vars.bProtected then
 				error( "Attempt to write to protected" )
 			else
 				rawset( t, k, v )

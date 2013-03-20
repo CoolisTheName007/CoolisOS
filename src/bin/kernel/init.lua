@@ -10,16 +10,16 @@ rawset(_G,'loadfile',function( _sFile )
 	return nil, "File not found"
 end)
 
----set up of INSTALL_PATH and module resolution
-FILE_PATH=({...})[1]
-local loc=(FILE_PATH:match'(.*)bin/kernel/init%.lua'):sub(1,-2)
-rawset(_G,'INSTALL_PATH',loc)
-os.loadAPI(fs.combine(INSTALL_PATH,'bin/kernel/loadreq/init.lua'))
+---set up of _INSTALL_PATH and module resolution
+_FILE_PATH=({...})[1]
+local loc=(_FILE_PATH:match'(.*)bin/kernel/init%.lua'):sub(1,-2)
+rawset(_G,'_INSTALL_PATH',loc)
+os.loadAPI(fs.combine(_INSTALL_PATH,'bin/kernel/loadreq/init.lua'))
 rawset(_G,'loadreq',_G['init.lua'])
 rawset(_G,'init.lua',nil)
 rawset(_G,'require',loadreq.require)
 rawset(_G,'include',loadreq.include)
-loadreq.vars.paths=loadreq.vars.paths:gsub('%?',fs.combine(INSTALL_PATH,'bin')..'/%?')..';'..loadreq.vars.paths
+loadreq.vars.paths=loadreq.vars.paths:gsub('%?',fs.combine(_INSTALL_PATH,'bin')..'/%?')..';'..loadreq.vars.paths
 
 ---patches
 local string=string
@@ -74,9 +74,12 @@ local globals={
 	net=require'kernel.net',
 	util=require'kernel.util',
 	sched=require'kernel.sched',
-	class=require'kernel.class',
 	log=require'kernel.log',
 }
+
+for i,v in pairs(require'kernel.class') do
+	globals[i]=v
+end
 
 for i,v in pairs(globals) do
 	rawset(_G,i,v)

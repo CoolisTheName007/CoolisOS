@@ -12,7 +12,7 @@ string,pcall,table,tostring,setmetatable,os,pairs,next,print,math,type,unpack
 local base = _G
 
 local util=require'kernel.util'
-local check = require'kernel.checker'.check
+local check =require'kernel.checker'.check
 --temporary
 local pprint=pprint
 local textutils=textutils 

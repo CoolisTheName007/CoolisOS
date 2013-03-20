@@ -473,7 +473,7 @@ end
 function mt:__index(name)
 	return function(...)
 		local c = class(name, ...)
-		getfenv()[name] = c
+    getfenv(2)[name] = c
 		return c
 	end
 end
