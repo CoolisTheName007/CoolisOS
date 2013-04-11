@@ -25,6 +25,14 @@
 	is made to behave in a way useful for debugging.
 ]]
 
+--[[
+Changes for OS:
+-__root field of each self points to the deepest self table;
+-methods matching '^_[^_]' are not copied into subclasses; 
+
+]]
+
+
 local ambiguous
 
 if keep_ambiguous then
@@ -162,8 +170,10 @@ local function build(class, shared_objs, shared,__root)
 
 	-- Create new object
 	local obj = { __type = 'object' }
-	__root=__root or obj
-	obj.__root=__root or obj
+	if __root==nil then
+		__root=obj
+	end
+	obj.__root=__root
 
 	-- Build child objects if there are base classes
 	local nbases = #class.__bases
@@ -225,7 +235,7 @@ function class_mt:__call(...)
 end
 
 function class_mt:__tostring()
-	return 'Class '..(tostring(self.__name))
+	return 'Class '..(tostring(self.__name))..' at '..debug.raw(self)
 end
 
 --[[
@@ -311,7 +321,7 @@ end
 
 function ofType(value)
 	local t = type(value)
-	return t =='table' and value.__class or t
+	return t =='table' and classname(t) or t
 end
 
 function typeof(value)
@@ -337,6 +347,7 @@ end
 function is_a(value, class)
 	return classof(value) and value:is_a(class) or false
 end
+
 
 --[[
 	Use a table to control class creation and naming.
@@ -403,7 +414,7 @@ function mt:__call(...)
 		for k, v in pairs(base) do
 
 			-- Skip reserved and ambiguous methods
-			if type(v) == 'function' and not reserved[k] and
+			if type(v) == 'function' and not reserved[k] and (type(k)=='string' and not k:match'^_[^_]')and
 				not ambiguous_keys[k] then
 
 				-- Where does this method come from?
@@ -473,7 +484,8 @@ end
 function mt:__index(name)
 	return function(...)
 		local c = class(name, ...)
-    getfenv(2)[name] = c
+		local cenv=getfenv(2)
+		cenv[name] = c
 		return c
 	end
 end

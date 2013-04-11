@@ -13,23 +13,41 @@ local base = _G
 
 local util=require'kernel.util'
 local check =require'kernel.checker'.check
+local textutils=textutils
+local string=string
 --temporary
 local pprint=pprint
-local textutils=textutils 
+
 --no more global access
 local env=getfenv()
 setmetatable(env,nil)
+
+function s_to_real(t)
+	local n_s=t%60
+	local m=((t-n_s)/60)
+	local n_m=m%60
+	local h=((m-n_m)/60)
+	return h,n_m,n_s
+end
 local os_time= function()
-	local day=textutils.formatTime(os.time())
-	local sec=tostring(os.clock())
+	local mc='Day '..os.day()..', '..textutils.formatTime(os.time())
+	local t=os.clock()
+	local h,n_m,n_s=s_to_real(t)
+	local sec=tostring(n_s)
 	local s,p,e=sec:match('^([^%.]*)(%.)([^%.]*)$')
-	sec=(s or 0)..(p or '.')..(e or '')..string.rep('0',2-(e and e:len() or 0))
-	return day..';'..sec
+	s=s or '0'
+	p=p or '.'
+	e=e or '0'
+	s=string.rep('0',2-s:len())..s
+	e=e..string.rep('0',2-e:len())
+	sec=s..p..e
+	local real=string.format('%sh%sm%ss',h,n_m,sec)
+	return string.format('%s',sec)--string.format('%s;%s;%s',mc,real,sec)
 end
 
 -------------------------------------------------------------------------------
 -- Log levels are strings used to filter logs.
--- Levels are to be used both in log filtering configuration (see @{#log.setlevel}) and each time 
+-- Levels are to be used both in log filtering configuration (see @{#log.setLevel}) and each time 
 -- @{#log.trace} function is used to issue a new log.
 --
 -- Levels are ordered by verbosity/severity level.
@@ -91,8 +109,8 @@ timestampformat = nil
 -- @param severity string representing the log level, see @{log#levels}.
 -- @param msg string containing the message to log.
 --
-displaylogger = displaylogger or function(_, _, ...)
-    if base.print then base.print(...) end
+displaylogger = function(_, _, ...)
+   -- if base.print then base.print(...) end
 end
 
 -------------------------------------------------------------------------------
@@ -150,7 +168,16 @@ function musttrace(module, severity)
     return not sev or lev >= sev
 end
 
+local function debug_getinfo(...)
+	return (base.debug and base.debug.getinfo or tostring)(...)
+end
 
+local function args_tostring(...)
+	local args = {}
+    local t = {...}
+    for k = 1, table.getn(t) do table.insert(args, k..":["..(debug_getinfo)(t[k]).."]") end
+	return table.concat(args,' ')
+end
 -------------------------------------------------------------------------------
 -- Prints out a log entry according to the module and the severity of the log entry.
 --
@@ -167,7 +194,7 @@ end
 function trace(module, severity, fmt, ...)
     check('string,string,string',module, severity, fmt)
     if not musttrace(module, severity) then return end
-    local c, s = pcall(string.format, fmt, unpack(util.map({...},function(k,v) return (type(k)=='number' and k or tostring(k)) end)))
+    local c, s = pcall(string.format, fmt, unpack(util.map({...},function(k,v) return (type(v)=='number' and v or debug_getinfo(v)) end)))
     if c then
         local t
         local function sub(p)
@@ -180,12 +207,10 @@ function trace(module, severity, fmt, ...)
         local out = (format or "%t %m-%s: %l"):gsub("%%(%a)", sub)
         loggers(module, severity, out)
     else -- fallback printing when the formating failed. The fallback printing allow to safely print what was given to the log function, without crashing the thread !
-		local args = {}
-        local t = {...}
-        for k = 1, table.getn(t) do table.insert(args, tostring(k)..":["..tostring(t[k]).."]") end
+		
         --trace(module, severity, "\targs=("..table.concat(args, " ")..")" )
         loggers(module, severity, "Error in the log formating! ("..tostring(s)..") - Fallback to raw printing:" )
-        loggers(module, severity, string.format("\tmodule=(%s), severity=(%s), format=(%q), args=(%s)", module, severity, fmt, table.concat(args, " ") ) )
+        loggers(module, severity, string.format("\tmodule=(%s), severity=(%s), format=(%q), args=(%s)", module, severity, fmt, args_tostring(...) ) )
     end
 end
 
@@ -193,12 +218,12 @@ end
 -------------------------------------------------------------------------------
 -- Sets the log level for a list of module names.
 -- If no module name is given, the default log level is affected
--- @function [parent=#log] setlevel
+-- @function [parent=#log] setLevel
 -- @param slevel level as in @{log#levels}
 -- @param varargs Optional list of modules names (string) to apply the level to.
 -- @return nothing.
 --
-function setlevel(slevel, ...)
+function setLevel(slevel, ...)
     local mods = {...}
     local nlevel = levels[slevel] or levels['ALL']
     if not levels[slevel] then
@@ -208,6 +233,23 @@ function setlevel(slevel, ...)
     else defaultlevel = nlevel end
 end
 
+---
+local wrapped=setmetatable({},{__mode='k'})
+function wrap_class(k)
+	assert(not wrapped[k])
+	local old=k.__init
+	rawset(k,'__init',function(...)
+		old(...)
+		env(tostring(k.__name),'DETAIL','initiated obj %s with args ',debug.getinfo(obj),args_tostring(...))
+	end)
+	wrapped[k]=old
+end
+function unwrapp_class(k)
+	if wrapped[k] then
+		rawset(k,'__init',wrapped[k])
+		wrapped[k]=nil
+	end
+end
 -- -----------------------------------------------------------------------------
 -- Make the module callable, so the user can call log(x) instead of log.trace(x)
 -- -----------------------------------------------------------------------------

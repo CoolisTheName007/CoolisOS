@@ -5,125 +5,57 @@
 -- name. Typical catalogs are "tasks", "mutexes" and "pipes".
 -- The catalog does not check for multiple names per object.
 -- @module catalog
--- @usage local tasks = require 'catalog'.get_catalog('tasks')
+-- @usage local tasks = require 'catalog'()
 --...
 --tasks:register('a task', sched.Task.running)
 --...
---local a_task=tasks:waitfor('a task')
+--local a_task=tasks:waitFor('a task')
 -- @alias M
-
-local log = require 'kernel.log'
+include'kernel.class'
+local log = require'kernel.log'
 local check=require'kernel.checker'.check
+local sched=require'kernel.sched'
 
-local sched=sched
+local named=setmetatable({},{__mode='kv'})
 
-
---get locals for some useful things
-local next,  setmetatable, tostring, getmetatable
-	= next,  setmetatable, tostring, getmetatable
-
-local M = {}
-
-local rev
-local catalogs
-
--- local register_events = setmetatable({}, {__mode = "kv"}) 
--- function get_register_event (catalogd, name)
-	-- check('catalog,string',catalogd, name)
-	-- if register_events[catalogd] and register_events[catalogd][name] then 
-		-- return register_events[catalogd][name]
-	-- else
-		-- local register_event = setmetatable({}, {
-			-- __tostring=function() return 'register$'..rev[catalogs][catalogd]..'/'..name end,
-		-- })
-		-- register_events[catalogd] = register_events[catalogd] or {}
-		-- register_events[catalogd][name] = register_event
-		-- return register_event
-	-- end
--- end
-
-
-
---- Register a name to a object
--- @param catalogd the catalog to use.
--- @param name a name for the object
--- @param object the object to name.
--- @return true is successful; nil, 'used' if the name is already used by another object.
-M.register = function ( catalogd, name, object )
-	check('catalog,string',catalogd,name)
-	if catalogd[name] and catalogd[name] ~= object then
-		return nil, 'used'
-	end
-	log('CATALOG', 'INFO', '%s registered in catalog %s as "%s"', 
-		tostring(object), rev[catalogs][catalogd], name)
-	catalogd[name] = object
-	rev[catalogd][object]=name
+class.Catalog()
+local C=Catalog
+C.named=named
+function C:__init()
+	self.objs=setmetatable({},{__mode='kv'})
+end
+function C:register(obj,name)
+	if type(obj)~='table' then error('not a table',2) end
+	if self.objs[name]~=obj then error('name taken',2) end
+	self.objs[obj]=name
+	self.objs[name]=obj
+	sched.signal(self,'+'..name,obj)
 	
-	sched.signal('catalog',rev[catalogs][catalogd]..'+'..name,object) 
-	return true
+	named[obj]=named[obj] or setmetatable({},{__mode='kv'})
+	named[obj][self]=true
 end
-
-M.unregister = function ( catalogd, name_or_object )
-	check('catalog',catalogd)
-	if type(name_or_object)=='string' then
-		rev[catalogd][catalogd[name_or_object]] = nil
-		catalogd[name_or_object]=nil
-	else
-		catalogd[rev[catalogd][name_or_object]]=nil
-		rev[catalogd][name_or_object] = nil
+function C:unregister(id)
+	local s = self.objs[id]
+	local name=type(s)=='string' and s or id
+	self.objs[s]=nil
+	self.objs[id]=nil
+	
+	if named[obj] then
+		named[obj][self]=nil
 	end
-	log('CATALOG', 'INFO', '%s unregistered from catalog %s, had name "%s"', 
-		tostring(object), rev[catalogs][catalogd], name)
-	sched.signal('catalog',rev[catalogs][catalogd]..'-'..name,object)
-	return true
+	sched.signal(self,'-'..name,obj)
 end
-
---- Retrieve a object with a given name.
--- Can wait up to timeout until it appears.
--- @param catalogd the catalog to use.
--- @param name name of the object
--- @param timeout time to wait. nil or negative waits for ever.
--- @return the object if successful or nil in case of timeout
-M.waitfor = function ( catalogd, name, timeout )
-	check('catalog,string,?number',catalogd,name,timeout)
-	log('catalog', 'INFO', 'catalog %s queried for name "%s" by %s',tostring(catalogd), name,tostring(sched.me()))
-	local object=catalogd[name] or select(3,sched.wait('catalog', get_register_event(catalogd, name),timeout))
-	log('catalog', 'INFO', 'catalog %s queried for name "%s" by %s, found %s',tostring(catalogd), name,tostring(sched.me()),tostring(object))
-	return object 
-end
-
---- Retrieve a catalog.
--- Catalogs are created on demand
--- @param name the name of the catalog.
-M.get_catalog = function (name)
+function C:waitFor(name,timeout)
 	check('string',name)
-	if catalogs[name] then 
-		return catalogs[name] 
-	else
-		local catalogd = setmetatable({}, { __mode = 'v', __type='catalog',__tostring=function() return name end,__index=M})
-		rev[catalogd]={}
-		M.register(catalogs,name,catalogd)
-		return catalogd
+	log('catalog', 'INFO', 'catalog %s queried for name "%s" by %s',self, name,sched.me())
+	
+	local obj
+	if self[name] then return self[name] else
+		local em,ev,o=sched.wait(self,'+'..name,timeout)
+		if em==self then obj=o end
 	end
+	log('catalog', 'INFO', 'catalog %s queried for name "%s" by %s, found %s',self, name,sched.me(),obj)
+	return obj
 end
 
-M._reset = function ()
-	rev = {} --tables of object->name in catalogs indexed by catalogs
-
-	catalogs = setmetatable({},{__tostring=function() return 'catalogs' end,__type='catalog',__index=M})
-	rev[catalogs]={}
-	rev[catalogs][catalogs]='catalogs'
-end
-
-setmetatable(M,{__call=function(M,...)
-	local nargs=select('#',...)
-	if nargs==3 then
-		check('catalog,string',catalogd,name)
-		return M.register(...)
-	elseif nargs==1 then
-		check('string',...)
-		return M.get_catalog(...)
-	end
-end})
-
-return M
+return C

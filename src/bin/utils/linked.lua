@@ -1,19 +1,12 @@
+include'kernel.class'
 local pairs=pairs
 local print=print
 
-Linked=setmetatable({},{
-__call=function(_,...) return _.new(...) end,
-__tostring=function() return 'Class Linked' end,
-})
+class.Linked()
 
-function Linked.new(t)
-	self=setmetatable({},{
-		__index=Linked,
-		__tostring=Linked.__tostring
-		})
+function Linked:__init(t)
 	self.r,self.l={[0]=-1},{[-1]=0}
 	if t then self:append_r(t) end
-	return self
 end
 
 function Linked._insert(t,val,i_l,i_r)
@@ -49,7 +42,6 @@ function Linked.next_l(t,ind)
 	if _~=0 then return _ end
 end
 
-
 function Linked.__tostring(t)
 	s={}
 	for i in self.next_r,t,nil do
@@ -71,6 +63,12 @@ end
 function Linked:has(val)
 	return self.r[val]~=nil
 end
+function Linked:isempty()
+	return self.r[0]==-1
+end
+Linked.append=Linked.append_r
+Linked.push=Linked.insert_r
+Linked.pop=Linked.remove
 
 function Linked.test()
 	t={'a',3,4}
@@ -81,5 +79,7 @@ function Linked.test()
 	print(l:has(4),l:has(3))
 	return l
 end
+
+
 
 return Linked

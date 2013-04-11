@@ -3,7 +3,8 @@ local net=string_mt.__net or {}
 string_mt.__net=net
 net.ids=net.ids or setmetatable({},{__mode='v'})
 local ids=net.ids
-ids[os.getComputerID()]=_G
+local id=os.getComputerID()
+ids[id]=_G
 
 net.queueEvent=function(id,...)
 	if net.ids[id] then

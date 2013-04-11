@@ -1,0 +1,45 @@
+local questions={
+        {
+        [[When was LG Founded??]],
+        [[2000]],
+        },
+        {
+                [[Who of the following is NOT a member of LG?]],
+                {
+                'DarkRaven',
+                'FatherAbel',
+                'Tuglowz',
+                'Sanitty',
+                },
+        },
+        {
+        [[What is Legacy Gaming's website address minus the www]],
+        [[legacygaming.com]],
+        },
+        {
+                [[How Does LG Staff handle griefing?]],
+                {
+                'All of these',
+                'With a Ban',
+                'With Jail',
+                'With Smite',
+                'None of these (except this one)',
+                },
+        },
+        {
+                [[What are you supposed to do if you see someone breaking the rules?]],
+                {
+                [[Message an Admin AND Email DcGLegacyGaming@gmail.com]],
+                [[Message an Admin]],
+                [[Call the police]],
+                [[Email DcGLegacyGaming@gmail.com]],
+                [[Message an Admin AND Call the police]],
+                [[All of these]],
+                },
+        },
+        {
+                [[What is the Owner of LG's Minecraft Name?]],
+                [[RoseD83]],
+        },
+}
+return questions

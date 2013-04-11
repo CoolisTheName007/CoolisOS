@@ -9,7 +9,7 @@ Vector 'Object' Functions And Fields:
   vector:scalarAdd(n)                   -- Scalar addition
   vector:subtract(otherVector)          -- Component-wise subtraction
   vector:scalarSubtract(n)              -- Scalar subtraction
-  vector:dot(otherVector)          -- Component-wise multiplication
+  vector:eldot(otherVector)          -- Component-wise multiplication
   vector:scalarMultiply(n)              -- Scalar multiplication
   vector:divide(otherVector)            -- Component-wise division
   vector:scalarDivide(n)                -- Scalar division
@@ -84,49 +84,40 @@ end
 local vector=Vec3
 local new=Vec3
 local isVector=function(v) return classof(v)==Vec3 end
-local getType=classof
+local getType=ofType
 local vector = {
   add = function(self, v)
-    return new(
-      self.x + v.x,
-      self.y + v.y,
-      self.z + v.z
-    )
+      self.x=self.x + v.x
+      self.y=self.y + v.y
+      self.z=self.z + v.z
+	  return self
   end,
   scalarAdd = function(self, n)
-    return new(
-      self.x + n,
-      self.y + n,
-      self.z + n
-    )
+    self.x=self.x + n
+    self.y=self.y + n
+    self.z=self.z + n
+    return self
   end,
   subtract = function(self, v)
-    return new(
-      self.x - v.x,
-      self.y - v.y,
-      self.z - v.z
-    )
+    self.x=self.x - v.x
+	self.y=self.y - v.y
+	self.z=self.z - v.z
+	return self
   end,
   scalarSubtract = function(self, n)
-    return new(
-      self.x - n,
-      self.y - n,
-      self.z - n
-    )
+    return self:scalarAdd(-n)
   end,
-  dot = function(self, v)
-    return new(
-      self.x * v.x,
-      self.y * v.y,
-      self.z * v.z
-    )
+  eldot = function(self, v)
+    self.x=self.x * v.x
+	self.y=self.y * v.y
+	self.z=self.z * v.z
+	return self
   end,
   scalarMultiply = function(self, n)
-    return new(
-      self.x * n,
-      self.y * n,
-      self.z * n
-    )
+	self.x=self.x * n
+	self.y=self.y * n
+	self.z=self.z * n
+	return self
   end,
   divide = function(self, o)
     return new(
@@ -349,11 +340,7 @@ local vector = {
     )
   end,
   clone = function(self)
-    return new(
-      self.x,
-      self.y,
-      self.z
-    )
+	return Vec3(self)
   end,
   equals = function(self, o)
     if not isVector(self) or not isVector(o) then return false end
@@ -390,22 +377,22 @@ local vmetatable = {
   __unm = function(v) return v:scalarMultiply(-1) end,
   __add = function(a, b)
     if type(b) == "number" and isVector(a) then
-      return a:scalarAdd(b)
+      return a:clone():scalarAdd(b)
     elseif type(a) == "number" and isVector(b) then
-      return b:scalarAdd(a)
+      return b:clone():scalarAdd(a)
     elseif isVector(a) and isVector(b) then
-      return a:add(b)
+      return a:clone():add(b)
     else
       error("Attempt to perform vector addition on <"..getType(a).."> and <"..getType(b)..">")
     end
   end,
   __sub = function(a, b)
     if type(b) == "number" and isVector(a) then
-      return a:scalarSubtract(b)
+      return a:clone():scalarSubtract(b)
     elseif type(a) == "number" and isVector(b) then
-      return b:scalarSubtract(a)
+      return b:clone():scalarSubtract(a)
     elseif isVector(a) and isVector(b) then
-      return a:subtract(b)
+      return a:clone():subtract(b)
     else
       error("Attempt to perform vector subtraction on <"..getType(a).."> and <"..getType(b)..">")
     end

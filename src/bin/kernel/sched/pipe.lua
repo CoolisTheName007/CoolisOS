@@ -68,18 +68,17 @@
 -- would have a time complexity in o(K^2), compared to o(K*log(K)) here.
 -- 
 --------------------------------------------------------------------------------
-
+include'kernel.class'
 
 local check=require 'kernel.checker'.check
 
-PACKAGE_NAME='sched'
-
-local sched=require 'init'
+local sched=sched
 
 --------------------------------------------------------------------------------
 -- Object metatable/class
 --------------------------------------------------------------------------------
-local P = { __type='pipe' }; P.__index = P
+class.Pipe()
+local P=Pipe
 
 local insert, remove, os_time = table.insert, table.remove, os.clock
 
@@ -92,24 +91,22 @@ sched.pipes = setmetatable({}, {__mode='kv'})
 --------------------------------------------------------------------------------
 -- Create a new pipe
 --------------------------------------------------------------------------------
-function pipe(maxlength)
+
+function P:__init(maxlength)
     check ('?number',maxlength)
-    local instance = { 
+    util.shcopy({ 
         sndidx     = 1;
         rcvidx     = 1;
         content    = { }; 
         maxlength  = maxlength; 
         state      = 'empty';
         wasteabs   = 32 ;
-        wasteprop  = 2 }
-		
+        wasteprop  = 2 },
+		self)
     if sched.pipes then
-		sched.pipes[tostring(instance):match(':.(.*)')]=instance --'0x%x+')]=instance 
+		sched.pipes[debug.getinfo(self)]=self
     end
-	setmetatable (instance, P)
-    return instance
 end
-
 
 --------------------------------------------------------------------------------
 -- Check whether the 'state' field is consistent with the pipe's content
@@ -161,10 +158,10 @@ function P :receive (timeout)
     local due_date
     while true do
         if self.rcvidx==self.sndidx then
-            log('pipe', 'DEBUG', "Pipe %s empty, :receive() waits for data", tostring(self))
+            log('pipe', 'DEBUG', "Pipe %s empty, :receive() waits for data", self)
             due_date = due_date or timeout and os_time() + timeout
             local timeout = due_date and due_date - os_time()
-            if timeout and timeout<=0 or sched.wait(self,'state',timeout)=='timer' then 
+            if timeout and timeout<=0 or sched.wait(self,'state',timeout)==sched.timer then 
                 return nil, 'timeout' 
             end
         else
@@ -183,19 +180,18 @@ end
 -- Push a value to read
 --------------------------------------------------------------------------------
 function P :send (x, timeout)
-    check ('pipe,?,?number',self, x, timeout)
-    if x==nil then error("Don't :send(nil) in a pipe",2) end
+    check ('!nil,?number',x,timeout)
     local maxlength = self.maxlength
     local due_date
     while self.state == 'full' do
-        log('pipe', 'DEBUG', "Pipe %s full, :send() blocks until some data is pulled from pipe", tostring(self))
+        log('pipe', 'DEBUG', "Pipe %s full, :send() blocks until some data is pulled from pipe", self)
         due_date = due_date or timeout and os_time() + timeout
         local timeout = due_date and due_date - os_time()
         if timeout and timeout<=0 or sched.wait(self,'state', timeout)=='timer' then
-            log('pipe', 'DEBUG', "Pipe %s :send() timeout", tostring(self))
+            log('pipe', 'DEBUG', "Pipe %s :send() timeout", self)
             return nil, 'timeout'
         else
-            log('pipe', 'DEBUG', "Pipe %s state changed, retrying to :send()", tostring(self))
+            log('pipe', 'DEBUG', "Pipe %s state changed, retrying to :send()", self)
         end
     end
     local sndidx = self.sndidx
@@ -269,4 +265,4 @@ function P :setwaste(abs, prop)
     return self
 end
 
-return pipe
+return Pipe

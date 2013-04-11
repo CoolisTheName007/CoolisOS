@@ -6,8 +6,9 @@ local fs=fs
 local string=string
 local loadfile=loadfile
 local error=error
-
-local log
+local function log(...)
+	return (_G.log and _G.log(...))
+end
 
 function getNameExpansion(s) --returns name and expansion from a filepath @s; special cases: ''->'',nil; '.'-> '','';
 	local _,_,name,expa=string.find(s, '([^%./\\]*)%.(.*)$')
@@ -89,16 +90,14 @@ function lua_requirer(path,cenv,env,renv,rerun,...)
 	local ok,r=pcall(f,...)
 	vars.requiring[path]=nil
 	if not ok then
-		return nil,err_prefix..'while calling module:'..tostring(r)
+		return nil,err_prefix..'while calling module:\n'..r
 	elseif r then
 		vars.required[path]=r
 		return r
 	else
 		local t={}
 		for i,v in pairs(env) do
-			if type(i)=='string' and i:sub(1,1)~='_' then
-				t[i]=v
-			end
+			t[i]=v
 		end
 		vars.required[path]=t
 		return t
@@ -168,7 +167,7 @@ local function _find(s,paths,caller_env)
 	end
 	table.insert(err,'_find:file not found:'..s..'\ncaller path='..(caller_env._FILE_PATH or 'not available'))
 	local serr=table.concat(err,'\n')
-	if log then log('loadreq','ERROR','_find:%s',serr) end
+	log('loadreq','ERROR','_find:%s',serr)
 	return nil,serr
 end
 find=_find
@@ -184,7 +183,7 @@ local function _require(s,paths,caller_env,...)
 	for req_name,requirer in pairs(vars.requirers) do
 		local r,e=requirer(path,caller_env,...)
 		if r then
-			return r
+			return r,path
 		else
 			table.insert(err,e)
 		end
@@ -226,10 +225,10 @@ els, if all loaders fail, errors immediatly, printing all error messages
 function require(s,paths,...)
 	local t,e=_require(s,paths,getfenv(2),...)
 	if t==nil then
-		if log then log('loadreq','ERROR','require:%s',e) end
-		error(e,2)
+		log('loadreq','ERROR','require:%s',e)
+		error(e,1)
 	else
-		if log then log('loadreq','INFO','require: success in requiring %s',s) end
+		log('loadreq','INFO','require: success in requiring [%s]',e)
 		return t
 	end
 end
@@ -240,13 +239,14 @@ function include(s,paths,...)
 	local t,e=_require(s,paths,caller_env,...)
 	if t then
 		for i,v in pairs(t) do
-			caller_env[i]=v
-			-- rawset(c_env,i,v)
+			if type(i)=='string' and i:sub(1,1)~='_' then
+				caller_env[i]=v
+			end
 		end
 		return true
 	else
-		if log then log('loadreq','ERROR','include:%s',e) end
-		error(e,2)
+		log('loadreq','ERROR','include:%s',e)
+		error(e,1)
 	end
 end
 

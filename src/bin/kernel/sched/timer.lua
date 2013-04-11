@@ -1,16 +1,14 @@
 ------------------------------------------------------------------------------
--- Timer module
+-- timer module
 --      supports one time timer timer.new(positive number)
 --      supports periodic timer timer.new(negative number)
 --      cron-compatible syntax (string conforming to cron syntax)
 --      support simple timers
 ------------------------------------------------------------------------------
-
+include'kernel.class'
 local linked=require'utils.linked'
 local check=require'kernel.checker'.check
 local shcopy=require'kernel.util'.shcopy
-local pprint=pprint
-local print=print
 local error=error
 local read=read
 PACKAGE_NAME='sched'
@@ -36,17 +34,15 @@ local unpack=unpack
 env=getfenv()
 setmetatable(env,nil)
 
-
-local function norm(t) --the CC clock moves in steps of 0.05
+local timer={}
+timer.norm=function(t) --the CC clock moves in steps of 0.05
 	t=t-t%0.05
 	-- if t<=0 then
-		-- error('time values must be non-negative and multiples of 0.05',3)--to be used internally inside Timer functions
+		-- error('time values must be non-negative and multiples of 0.05',3)--to be used internally inside timer functions
 	-- end
 	return t
 end
-
-local Timer={}
-Timer.norm=norm
+local norm=timer.norm
 -------------------------------------------------------------------------------------
 -- Common scheduling code
 -------------------------------------------------------------------------------------
@@ -64,7 +60,7 @@ local n
 -- Take a timer, reference it
 -------------------------------------------------------------------------------------
 
-Timer.add = function(t)
+timer.add = function(t)
 	if not link_r[t] then
 		local ind
 		for val in linked.next_r,link,val do
@@ -82,7 +78,7 @@ end
 -------------------------------------------------------------------------------------
 -- Take a timer, dereference it
 -------------------------------------------------------------------------------------
-Timer.remove = function(t)
+timer.remove = function(t)
 	link:remove(t)
 end
 
@@ -90,50 +86,21 @@ end
 -- Signal all elapsed timer events.
 -- This must be called by the scheduler every time a due date elapses.
 -------------------------------------------------------------------------------------
-function Timer.step()
+function timer.step()
 	if link_r[0]==-1 then return end -- if no timer is set just return and prevent further processing
 	local now = os_time()
-	while link_r[0]~=-1 and now >= link_r[0] do --about the aboce redundancy, maybe while loops are heavy?
+	while link_r[0]~=-1 and now >= link_r[0] do --about the above redundancy, maybe while loops are heavy?
 		local nd = link:remove()
-		sched.signal('timer',nd)
+		sched.signal(timer,nd)
 	end
 end
 
-Timer.meta={__index=Timer}
-setmetatable(Timer,{__index=Obj,__tostring=function() return 'Class Timer' end})
-
-local get_o_name=function(a,b,...)
-	if type(a)=='string' then
-		return b,a
-	else
-		return a
-	end
-end
-
---helper for cyclic timer
-local function cycle_handle(obj,_,ev)
-	ev=ev+obj.delta
-	obj:link{timer={ev}}
-	obj.f(unpack(obj.args))
-end
+timer.meta={__index=timer}
+setmetatable(timer,{__index=Obj,__tostring=function() return 'Class timer' end})
 -------------------------------------------------------------------------------------
--- Cyclic (repetitive) timer
--- @return timer object.
--------------------------------------------------------------------------------------
-function Timer.cycle(delta,...)
-	delta=norm(delta)
-	local f,name=get_o_name(...)
-	check('number,function,?string',delta,f,name)
-	local timer=Obj.new(cycle_handle,name)
-	shcopy({delta=delta,f=f,args={...}},timer)
-	return timer
-end
-
--------------------------------------------------------------------------------------
--- Simple timer API used by the scheduler;
 -- returns the next expiration date
 -------------------------------------------------------------------------------------
-function Timer.nextevent()
+function timer.nextevent()
 	-- print(link)
 	if link_r[0]~=-1 then return link_r[0] end
 end
@@ -148,20 +115,41 @@ local meta={
 			-- error(k..'time values must be positive',2) 
 		-- end
 		if v==nil then
-			Timer.remove(k)
+			timer.remove(k)
 		else--could move it here...
-			Timer.add(k)
+			timer.add(k)
 		end
 		rawset(t,k,v)
 	end,
+	
 }
 ---resets the timer module
-Timer._reset=function()
+timer._reset=function()
 	events=setmetatable({[{}]='placeholder'},meta)
 	sched.fil.timer=events
 	link=linked()
 	link_r=link.r
-	Timer.link=link
+	timer.link=link
 end
 
-return Timer
+class.CyclicTimer(sched.Obj)
+do
+local C=CyclicTimer
+local O=sched.Obj
+function C:__init(delta,...)
+	O:__init(self)
+	check('number,function',delta,f)
+	self.delta=norm(delta)
+	self.f=f
+	self.args={...}
+end
+function C:handle(_,ev)
+	ev=ev+self.delta
+	self:link{timer={ev}}
+	self.f(unpack(self.args))
+end
+end
+timer.cyclic=CyclicTimer
+
+
+return timer

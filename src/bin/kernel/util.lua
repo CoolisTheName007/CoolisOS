@@ -4,6 +4,7 @@
 -- @license [MIT](http://www.opensource.org/licenses/mit-license.php)
 -- @script moses
 -- Internalisation
+local error,pcall=error,pcall
 local next, type, unpack, select = next, type, unpack, select
 local setmetatable, getmetatable = setmetatable, getmetatable
 local t_insert, t_sort = table.insert, table.sort
@@ -44,12 +45,42 @@ end
 -- Internal counter for unique ids generation
 local unique_id_counter = -1
 
--- ========= Others
+-- ========= Filesystem utilities
 function _.with(handle,f,...)
   local ok, err=pcall(f,handle,...)
-  if handle.close then handle:close() end
+  if handle and handle.close then handle:close() end
+  if not ok then error('util.with:'..err,2) end
   return ok,err
 end
+--========== Table utilities
+function _.set(t,...)
+	local arg={...}
+	local t,n=t,#arg
+	for i=1,(n-2) do
+		t[arg[i]]=t[arg[i]] or {}
+		t=t[arg[i]]
+	end
+	t[arg[n-1]]=arg[n]
+end
+
+function _.get(t,...)
+	local arg={...}
+	for i=1,#arg do
+		t=t[arg[i]]
+		if t==nil then return nil end
+	end
+end
+
+function _.delete(t,...)
+	local arg={...}
+	local n=#arg
+	for i=1,n-1 do
+		t=t[arg[i]]
+		if t==nil then return nil end
+	end
+	t[arg[n]]=nil
+end
+
 
 -- ========= Scheduler utilities
 function _.wait(f,match,...)
@@ -58,7 +89,7 @@ function _.wait(f,match,...)
 		r={f(...)}
 		b=true
 		for i,v in pairs(match) do
-			if r[i]~=v then
+			if r[i]~=nil and r[i]~=v then
 				b=false
 				break
 			end

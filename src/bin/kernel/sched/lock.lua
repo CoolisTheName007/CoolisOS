@@ -77,10 +77,8 @@
 --          [code]
 --      end)
 --------------------------------------------------------------------------------
+include'kernel.class'
 local check = require 'kernel.checker'.check
-local pack=require 'utils.table'.pack
-
-PACKAGE_NAME='sched'
 
 local sched = require 'init'
 
@@ -95,25 +93,22 @@ local pairs = pairs
 local type = type
 local unpack = unpack
 
- -- needed for pack. To be removed when we switch to Lua5.2
-
 env=getfenv()
 setmetatable(env,nil)
---module(...)
 
 --------------------------------------------------------------------------------
 -- 
 --------------------------------------------------------------------------------
-LOCK = { hooks =  {}, objlocks = setmetatable({}, {__mode = "k"}) }
-LOCK.__index = LOCK
-
+class.LOCK()
+LOCK.hooks={}
+LOCK.objlocks=setmetatable({}, {__mode = "k"})
 --------------------------------------------------------------------------------
 -- Create a new lock object. It remains unlocked.
 --------------------------------------------------------------------------------
-function new()
-    return setmetatable({ waiting =  {} }, LOCK)
+setmetatable(env,{__call=function() return LOCK(...) end})
+function LOCK:__init()
+    self.waiting={}
 end
-
 --------------------------------------------------------------------------------
 -- Destroy a lock object.
 --------------------------------------------------------------------------------
@@ -143,7 +138,7 @@ local function protectdie(self, thread)
     if not LOCK.hooks[thread] then
         local h = sched.sigonce(function() 
             autorelease(thread)
-        end,thread, "die")
+        end,thread, "dead")
         LOCK.hooks[thread] = {sighook = h}
     end
     (LOCK.hooks[thread])[self] = true
@@ -155,7 +150,7 @@ end
 local function unprotectdie(self, thread)
     (LOCK.hooks[thread])[self] = nil
     if not next(LOCK.hooks[thread], next(LOCK.hooks[thread])) then -- if this was the last lock attached to that thread...
-        (LOCK.hooks[thread].sighook):kill()
+        (LOCK.hooks[thread].sighook):destroy()
         LOCK.hooks[thread] = nil
     end
 end
@@ -165,14 +160,14 @@ end
 -- releases it.
 --------------------------------------------------------------------------------
 function LOCK:acquire()
-    local t = sched.tasks.running --coroutine.running()
+    local t = sched.task.running
     assert(self.owner ~= t, "a lock cannot be acquired twice by the same thread")
     assert(self.owner ~= "destroyed", "cannot acquire a destroyed lock")
     protectdie(self, t) -- ensure that the lock will be unlocked if the thread dies before unlocking...
 
     while self.owner do
         self.waiting[t] = true
-        sched.wait(self, {t}) -- wait on the current lock with the current thread
+        sched.wait(self,t) -- wait on the current lock with the current thread
         if self.owner == "destroyed" then error("lock destroyed while waiting") end
     end
     self.waiting[t] = nil
@@ -183,7 +178,7 @@ end
 -- Release ownership of a lock. 
 --------------------------------------------------------------------------------
 function LOCK:release(thread)
-    thread = thread or sched.tasks.running --coroutine.running()
+    thread = thread or sched.task.running
     assert(self.owner ~= "destroyed", "cannot release a destroyed lock")
     assert(self.owner == thread, "unlock must be done by the thread that locked")
     unprotectdie(self, thread)
@@ -225,7 +220,7 @@ function synchronized(f)
     check(f,'function')
     local function sync_f(...)
         local k = lock (f)
-        local r = pack( f(...) )
+        local r = {f(...)}
         unlock(f)
         return unpack (r, 1, r.n)
     end

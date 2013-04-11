@@ -1,10 +1,15 @@
+local driver={}
+
 local peripheral=peripheral
-function peripheral.update()
+function driver.update()
 	for _, side in ipairs(rs.getSides()) do
 		if peripheral.isPresent(side) then
-			peripheral[side]=peripheral.wrap(side)
-			sched.signal(peripheral,peripheral[side].getType(),side)
+			driver[side]=peripheral.wrap(side)
+			-- sched.signal(peripheral,peripheral[side].getType(),side)
+		else
+			driver[side]=nil
 		end
 	end
 end
-sched.sighook({platform='peripheral_detach'
+
+return driver

@@ -1,4 +1,4 @@
-local pack=require 'utils.table'.pack
+
 local io=io
 local string=string
 local table=table
@@ -106,8 +106,8 @@ function vprint (write, print_indent, ...)
          end
       else write(tostring(x)) end
    end
-   local args = pack(...)
-   local nb = args.n
+   local args = {...}
+   local nb = table.getn(args)
    for k = 1, nb do aux(args[k]); if k<nb then write "\t" end end
 end
 
