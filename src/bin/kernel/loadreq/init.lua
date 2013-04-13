@@ -61,8 +61,10 @@ calls the function with unpack(@args) and returns and saves either
 	a shallow copy of the functions environment
 ]]
 
-function lua_requirer(path,cenv,env,renv,rerun,...)
-	local err_prefix='lua_requirer:'
+function lua_requirer(path,cenv,t)
+    local env,renv,rerun,args=t.env,t.renv,t.rerun,t.args
+    
+    local err_prefix='lua_requirer:'
 	local vars=vars.lua_requirer
 	local _,ext=getNameExpansion(path)
 	if not (ext=='' or ext=='lua' or ext==nil) then
@@ -87,7 +89,7 @@ function lua_requirer(path,cenv,env,renv,rerun,...)
 	renv=renv or _G
 	setmetatable(env,{__index=renv})
 	vars.requiring[path]=true
-	local ok,r=pcall(f,...)
+	local ok,r=pcall(f,args)
 	vars.requiring[path]=nil
 	if not ok then
 		return nil,err_prefix..'while calling module:\n'..r
@@ -172,16 +174,16 @@ local function _find(s,paths,caller_env)
 end
 find=_find
 
-local function _require(s,paths,caller_env,...)
+local function _require(s,opt,caller_env)
 	local err={}
 	table.insert(err,'loadreq:require: while requiring '..tostring(s))
-	local path,e=_find(s,paths,caller_env)
+	local path,e=_find(s,opt.path,caller_env)
 	if path==nil then
 		table.insert(err,e)
 		return nil, table.concat(err,'\n')
 	end
 	for req_name,requirer in pairs(vars.requirers) do
-		local r,e=requirer(path,caller_env,...)
+		local r,e=requirer(path,caller_env,opt)
 		if r then
 			return r,path
 		else
@@ -222,8 +224,9 @@ els, if all loaders fail, errors immediatly, printing all error messages
 -in case of failure finding the path, errors with useful info
 ]]
 
-function require(s,paths,...)
-	local t,e=_require(s,paths,getfenv(2),...)
+function require(s,opt)
+    opt=opt or {}
+	local t,e=_require(s,opt,getfenv(2))
 	if t==nil then
 		log('loadreq','ERROR','require:%s',e)
 		error(e,1)
@@ -234,9 +237,10 @@ function require(s,paths,...)
 end
 
 ---same as require, but copies the returned API to the caller's environment
-function include(s,paths,...)
+function include(s,opt)
+    opt=opt or {}
 	local caller_env=getfenv(2)
-	local t,e=_require(s,paths,caller_env,...)
+	local t,e=_require(s,opt,caller_env)
 	if t then
 		for i,v in pairs(t) do
 			if type(i)=='string' and i:sub(1,1)~='_' then
@@ -250,8 +254,10 @@ function include(s,paths,...)
 	end
 end
 
-function reload(s,paths,caller_env,env,renv,rerun,...)
-	return require(s,paths,env,renv,true,...)
+function reload(s,opt)
+    opt=opt or {}
+    opt.rerun=true
+	return require(s,opt)
 end
 
 --protection utilities; these are meant more as a warning than OS-grade protection

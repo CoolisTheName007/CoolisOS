@@ -174,6 +174,7 @@ local function build(class, shared_objs, shared,__root)
 		__root=obj
 	end
 	obj.__root=__root
+    obj[class.__name]=obj
 
 	-- Build child objects if there are base classes
 	local nbases = #class.__bases
@@ -232,10 +233,6 @@ function class_mt:__call(...)
 	local obj = build(self, {}, false)
 	obj:__init(...)
 	return obj
-end
-
-function class_mt:__tostring()
-	return 'Class '..(tostring(self.__name))..' at '..debug.raw(self)
 end
 
 --[[

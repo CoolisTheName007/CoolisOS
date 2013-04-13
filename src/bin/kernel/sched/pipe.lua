@@ -77,8 +77,10 @@ local sched=sched
 --------------------------------------------------------------------------------
 -- Object metatable/class
 --------------------------------------------------------------------------------
-class.Pipe()
-local P=Pipe
+
+sched.Pipe=class'Pipe'
+do
+local P=sched.Pipe
 
 local insert, remove, os_time = table.insert, table.remove, os.clock
 
@@ -154,11 +156,11 @@ end
 -- Read a value, yield the current task if necessary
 --------------------------------------------------------------------------------
 function P :receive (timeout)
-    check ('pipe,?number',self,timeout)
+    check('?number',timeout)
     local due_date
     while true do
         if self.rcvidx==self.sndidx then
-            log('pipe', 'DEBUG', "Pipe %s empty, :receive() waits for data", self)
+            log('pipe', 'DEBUG', "(%s) empty,(%s) :receive() waits for data", self,sched.running)
             due_date = due_date or timeout and os_time() + timeout
             local timeout = due_date and due_date - os_time()
             if timeout and timeout<=0 or sched.wait(self,'state',timeout)==sched.timer then 
@@ -249,7 +251,7 @@ end
 -- Change or remove (by passing nil) the curent pipe length limitation.
 --------------------------------------------------------------------------------
 function P :setmaxlength(maxlength)
-    check ('pipe,?number',self,maxlength)
+    check ('?number',maxlength)
     if self :length() > maxlength then return nil, 'length exceeds new maxlength' end
     if maxlength and maxlength<1 then return nil, 'invalid maxlength' end
     self.maxlength = maxlength
@@ -264,5 +266,51 @@ function P :setwaste(abs, prop)
     self.wasteabs, self.wasteprop = abs, prop
     return self
 end
+end
+sched.SigPipe=class('SigPipe',sched.Pipe,sched.Obj)
+do
+local S=sched.SigPipe
+function S:handle(...)
+    self:send{...}
+end
+end
 
-return Pipe
+sched.pump=function(pin,f,pout)
+    check('!nil,function,!nil',pin,f,pout)
+    repeat
+        local r=f(pin and pin:receive())
+        if r~=nil and pout then pout:send(r) end
+    until false
+end
+
+sched.to=function(pin,pouts)
+    repeat
+        local x=pin:receive()
+        if x~=nil then
+            for i,pout in ipairs(pouts) do
+                pout:send(x)
+            end
+        end
+    until false
+end
+
+sched.from=function(pins,pout)
+    sched.running:reset()
+    for _,pin in ipairs(pins) do
+        sched.running:link(pin,'*')
+    end
+    repeat
+        sched.wait(false)
+        local redo=true
+        while redo do
+            redo=false
+            for _,pin in ipairs(pins) do
+                if pin:peek()~=nil then
+                    pout:send(pin:receive())
+                    redo=true
+                end
+            end
+        end
+    until false
+end
+

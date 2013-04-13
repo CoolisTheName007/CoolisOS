@@ -60,8 +60,9 @@ term
 ---in out in out
 ]]
 local active={
-'setBackgound',
+'setBackgoundColour',
 'setTextColour',
+'setCursorPos',
 'setCursorBlink',
 'write',
 'setSize',
@@ -69,33 +70,18 @@ local active={
 'clear',
 'setPixel',
 }
-function Term:_wrap_signals()
+function Term:setSignals(bool)
 	for _,k in ipairs(active) do
-		local f=self[k]
-		self[k]=function(...)
-			sched.signal(self,k,...)
+		local f=self['_'..k] or self[k]
+		self[k]=bool and function(...)
+			if not self._calm then sched.signal(self,k,...) self._calm=true end
 			return f(...)
-		end
+		end or f
 	end
 end
-function Term:destroy()
-    self._blinker:destroy()
-end
-
 function Term:__init(opt)
 	term_opt:drop(self,opt)
 	self:_allocate()
-	self:_wrap_signals()
-    self._blinker=sched.task(function()
-        local b=false
-        while true do
-            if self.blink then
-                self._blink=not b
-                sched.signal(self,'blink')
-            end
-            sleep(0.5)
-        end
-    end)
 end
 function Term:setCursorPos(x,y) self.pos:assign(x,y) end
 function Term:getCursorPos() return self.pos.x,self.pos.y end
@@ -115,19 +101,21 @@ function Term:write(txt)
 	check('string',txt)
 	local n=#txt
 	local pos=self.pos
-	if pos.x+n<=1 or pos.x>= self.size.x then
+	if pos.x+n<=1 or pos.x> self.size.x then
 		pos.x=pos.x+n
 		return
-	elseif pos.x < 1 then
+    end
+	if pos.x < 1 then
 		txt=txt:sub(math.abs(pos.x)+2)
 		pos.x=1
 	end
 	local line=self.matrix[pos.y]
 	if line then
 		for j=pos.x,math.min(pos.x-1+n,self.size.x) do
-			line[j]={tc=self.tcolor,bc=self.bcolor,c=txt:sub(j,j)}
+			line[j]={tc=self.tcolor,bc=self.bcolor,c=txt:sub(j-pos.x+1,j-pos.x+1)}
 		end
 	end
+    pos.x=pos.x+n
 end
 function Term:setSize(self,size)
 	self.size=size
@@ -139,12 +127,12 @@ end
 
 function Term:scroll(n)
 	check('number',n)
-	n=n%1
-	local ind=n>0 and 1 or self.size.y
+	n=(n-n%1)
+	local ind,nind=n>0 and 1 or nil,n>0 and self.size.y or 1
 	local matrix=self.matrix
-	for i=0,math.abs(n) do
+	for i=1,math.abs(n) do
 		table.remove(matrix,ind)
-		matrix[ind]=self:_newLine()
+        matrix[nind]=self:_newLine()
 	end
 end
 function Term:clear() self:_allocate() end
@@ -172,13 +160,13 @@ function Term:blit_native(term,pos,section)
 	pos=pos or def_pos
 	section=section or Rectangle(pos,self.size)
     term.setCursorBlink(false)
-    if self.blink and self._blink then
+    if self.blink then
         local cell=self.matrix[self.pos.y] and self.matrix[self.pos.y][self.pos.x]
         if cell then
-            self._bchar=cell.c
-            cell.c='_'
+            self._bcell=cell
+            cell.bc,cell.tc=cell.tc,cell.bc
         else
-            self._bchar=false
+            self._bcell=nil
         end
     end
     
@@ -205,8 +193,10 @@ function Term:blit_native(term,pos,section)
 			term.write(table.concat(tTxt))
 		end
 	end
-    if self._bchar then
-        self.matrix[self.pos.y][self.pos.x].c=self._bchar
+    if self._bcell then
+        local cell=self._bcell
+        cell.bc,cell.tc=cell.tc,cell.bc
+        self._bcell=nil
     end
 end
 function Term:setPixel(char,tcolor,bcolor,x,y)

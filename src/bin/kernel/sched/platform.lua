@@ -2,6 +2,7 @@ local log=require'kernel.log'
 local sched,pairs,string,term,_G,fs,os,print,unpack,select,pprint,next=sched,pairs,string,term,_G,fs,os,print,unpack,select,pprint,next
 local coroutine=coroutine
 local tostring,math=tostring,math
+local debug,util=debug,util
 local plat={}
 
 local sched=sched
@@ -22,17 +23,18 @@ local Task=sched.Task
 local cc,CC,load=0,1,0
 last_yield,last_return=-math.huge,-math.huge
 plat.info=function()
-	return string.format('load: %s;last yield: %d;last return:%s',load,last_yield,last_return)
+	return string.format('load: %f;last yield: %f;last return:%f',util.format_number(load,2),util.format_number(last_yield,2),util.format_number(last_return,2))
 end
 
 local yield=function(...)
-	log('platform','DETAIL',plat.info())
+    log('platform','DETAIL','yielding to platform')
 	last_yield=time()
 	cc=last_yield-last_return
 	local x={coroutine.yield(...)}
 	last_return=time()
 	CC=last_return-last_yield
 	load=cc/(CC+cc)
+    log('platform','DETAIL',plat.info())
 	return x
 end
 
@@ -42,7 +44,7 @@ function plat.step(timeout)
 		local ev,id
 		if timeout==0 then
 			if time()-last_return>=0.05 then --retain control for at most (as far as the scheduler can control) one tick if necessary; set to math.huge in case there is too much of a delay between computers;
-				log('platform','DETAIL','yielding to platform')
+				
 				ev=wake_ev
 				os.queueEvent(ev)
 			else
@@ -64,7 +66,7 @@ function plat.step(timeout)
 		return
 	else
 		if not fil[plat] then
-			log('platform','DETAIL','no timers or platform listeners, so exiting.')
+			log('platform','ERROR','no timers or platform listeners, so exiting.')
 			sched.stop()
 			return
 		end
@@ -80,5 +82,6 @@ end
 function plat._reset()
 	fil=sched.fil
 end
-
+debug.name(plat,'platform')
+sched.platform=plat
 return plat

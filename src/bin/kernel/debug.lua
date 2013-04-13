@@ -1,5 +1,6 @@
 --debug
 include'kernel.class'
+local check=require'kernel.checker'.check
 local debug={}
 
 local function wrap(text, limit) --from Kingdaroo
@@ -66,7 +67,7 @@ rawset(_G,'loadfile',function( _sFile )
   end
   return nil, "File not found"
 end)
-local traceback=function(level,terr)
+local traceback=function(level,terr,maxlevel)
   local terr=terr or {}
   local passed={}
   local err,ok=terr
@@ -77,7 +78,7 @@ local traceback=function(level,terr)
     ok,err=pcall(error,'',j)
     if err:match('^[^:]+')=='bios' then break end
     table.insert(terr,err)
-  until (passed[err])
+  until (passed[err] or (maxlevel and (j+1-2>maxlevel) ) )
  
   return terr
 end
@@ -148,10 +149,10 @@ local function format_traceback(terr)
   return ts
 end
 
-function debug.traceback(msg,level)
+function debug.traceback(msg,level,maxlevel)
   local level=level or 0
-  local ts=format_traceback(traceback(level+1,{}))
-  msg='['..(msg or 'debug.traceback')
+  local ts=format_traceback(traceback(level+1,{},maxlevel))
+  msg=(msg and '\n')..'['..(msg or 'debug.traceback')
   table.insert(ts,1,msg)
   return table.concat(ts,'\n')..'\n]'
 end
@@ -180,19 +181,29 @@ function debug.raw(t)
         return tostring(t)
     end
 end
+function debug.log(...)
+    return log('debug','DEBUG','(%s):\nMsg:\n\t%s\nFrom:%s',sched.running or 'nil',debug.args_tostring(...),debug.traceback('',1,2))
+end
+function debug.objinfo(s)
+    return (debug.named[s] and debug.named[s]..'|' or '')
+        ..(typeof(s)=='object' and (classname(s) or debug.raw(s))..' instance|' or '')
+        ..debug.raw(s) or ''
+end
+
 
 function debug.getinfo(v)
-	if typeof(v)=='object' then
-		if v.__debug then
-			return v:__debug()
-		else
-			return (debug.named[v] and debug.named[v]..'(debug name),' or '')..string.format('%s instance at %s',classname(v),debug.raw(v))
-		end
+	if type(v)=='table' then
+		return debug.objinfo(v)
 	else
 		return type(v)..':'..tostring(v)
 	end
 end
-
+function debug.args_tostring(...)
+	local args = {}
+    local t = {...}
+    for k = 1, table.maxn(t) do table.insert(args, (debug.getinfo)(t[k])) end
+	return table.concat(args,',')
+end
 function debug.wrap(f)
     return function(...)
         --wrapped level
@@ -205,6 +216,14 @@ end
 debug.named=setmetatable({},{__mode='kv'})
 function debug.name(obj,name)
 	debug.named[obj]=name
+    return obj
 end
 
+function debug.namefield(self,k,v)
+    v=v==nil and self[k] or v
+    check('table,!nil,!nil',self,k,v)
+    self[k]=v
+    debug.name(v,string.format('(%s).(%s)',debug.getinfo(self),debug.getinfo(k)))
+    return v
+end
 return debug

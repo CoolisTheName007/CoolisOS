@@ -86,10 +86,10 @@ local function get_args(...)
 		nargs=nargs-1
 	end
 	if nargs~=0 then
-		if nargs==1 then
+		if nargs==1 and type(args[1])=='table' then
 			t=args[1]
 		else
-			t={[args[1]]={unpack(args,2,nargs)}}
+			t={[args[1]]={nargs==1 and '*' or unpack(args,2,nargs)}}
 		end
 	end
 	return t,timeout
@@ -109,9 +109,9 @@ local add_timer=function(t,nd)
 end
 
 function get_t(...)
-	local t,timeout=get_args(select(name and 3 or 2,...))
+	local t,timeout=get_args(...)
 	if timeout then t=add_timer(t,timeout+os_time()) end
-	return t
+    return t
 end
 
 ---Registers @obj in the waiting table @fil in the waiting sets described by the link table @t
@@ -142,6 +142,7 @@ end
 
 ---Unregisters @obj in the waiting table @fil from the waiting sets described by the link table @t
 function O:unlink(...)
+    local r=self.__root
 	local t=get_t(...)
 	if t==nil then return end
 	local ofil=self.fil
@@ -157,7 +158,7 @@ function O:unlink(...)
 					ofil_tev[ev]=nil
 					
 					fil_tobj=fil_tev[ev]
-					fil_tobj[self]=nil
+					fil_tobj[r]=nil
 					if not next(fil_tobj) then fil_tev[ev]=nil end
 				end
 			end
@@ -170,14 +171,19 @@ end
 ---Unregisters @obj from all the waiting sets it is linked to.
 function O:reset()
 	local fil_tev
+    local r=self.__root
 	for em,tev in pairs(self.fil) do
 		fil_tev=fil[em]
-		for ev in pairs(tev) do
-			-- print(ev,'|',self,'|',fil_tev[ev],'|',fil_tev[ev][self])
-			fil_tev[ev][self]=nil
-			if not next(fil_tev[ev]) then fil_tev[ev]=nil end
-		end
-		if not next(fil_tev) then fil[em]=nil end
+		if fil_tev then
+            for ev in pairs(tev) do
+                -- print(ev,'|',self,'|',fil_tev[ev],'|',fil_tev[ev][self])
+                if fil_tev[ev] then
+                    fil_tev[ev][r]=nil
+                    if not next(fil_tev[ev]) then fil_tev[ev]=nil end
+                end
+            end
+            if not next(fil_tev) then fil[em]=nil end
+        end
 	end
 	self.fil={}
 end
@@ -221,7 +227,6 @@ function O:destroy(...)
 		self.destroyed=true
 	end
 end
-
 
 local function check_tree(self,new_parent,seen)
     if new_parent==nil then return true,seen end
@@ -280,6 +285,18 @@ function O:cancelTimeout()
 		self:unlink(td.td)
 		self.td=nil
 	end
+end
+
+function O:__debug()
+    local fil={}
+    for i,v in pairs(self.fil) do
+        local k=debug.getinfo(i)
+        fil[k]={}
+        for j in pairs(v) do
+            table.insert(fil[k],debug.getinfo(j))
+        end
+    end
+    return string.format('%s;   \nWait descriptor:%s',debug.objinfo(self),pstring(fil))
 end
 end
 
@@ -354,7 +371,7 @@ function T:handle(...)
 	sched.ready=true
 	
 	log('sched', 'DETAIL', 'Task:handle rescheduling (%s) to receive SIGNAL [%s].[%s]',
-	self,arg[1],arg[2])
+	self,...)
 	return self
 end
 
@@ -390,8 +407,9 @@ function T:resume()
 	Task.running=self
 	
 	log('sched', 'DETAIL', "Resuming (%s)", self)
-	local success, msg = coroutine.resume (co)
-	Task.running=nil
+	local success, msg = coroutine.resume (co,unpack(self.args))
+	log('sched', 'DETAIL', "Exited (%s)", self)
+    Task.running=nil
 	self.args={}
 	sched.running = nil
 	if not success then
@@ -415,12 +433,12 @@ end
 function T:wait(...)
 	local task = self
 	if task.co~=coroutine.running() then error('calling Task.wait outside a task/inside a task but inside another coroutine',2) end
-	if ...==nil then
-		log('sched', 'DETAIL', "Task.wait rescheduling (%s) for resuming ASAP", task)
+	if (...)==nil then
 		sched.queue:push(task)
+        log('sched', 'DETAIL', "Task.wait rescheduling (%s) for resuming ASAP", task)   
 	elseif ... then
-		log('sched', 'DETAIL', "(%s) waiting", task)
 		task:link(...)
+        log('sched', 'DETAIL', "(%s) waiting", task)
 	else
 		log('sched', 'DETAIL', "(%s) waiting for pre-set signals", task)
 	end
@@ -436,105 +454,37 @@ function Task._reset()
 	Task.running=nil
 end
 
-
-
-
--- local Wait={} --some optimizations
-
--- ---Blocks execution until a signal described by (...) is received; then calls f with the signal as argument (e.g. f(emitter,event,...))
--- --If f returns true, breaks the loop.
--- Wait.loop = function (f,...)
-	-- check('function',f)
-	-- local t,timeout=get_args(...)
-	-- check('task',sched.running)
-	-- local task=sched.running
-	-- local t=t or {}
-	-- task:link(t)
-	-- if timeout then 
-		-- local nd=os_time()+timeout
-		-- while true do
-			-- log('Wait','DEBUG','in loop')
-			-- nd=os_time()+timeout
-			-- task:link{timer={nd}}
-			-- out=f(sched.wait(false))
-			-- task:unlink{timer={nd}}
-			-- if out then break end
-		-- end
-		-- log('Wait','DEBUG','out loop')
-	-- else
-		-- while true do
-			-- log('Wait','DEBUG','in loop')
-			-- if f(sched.wait(false)) then break end
-		-- end
-		-- log('Wait','DEBUG','out loop')
-	-- end
-	-- task:unlink(t)
--- end
-
-
 ---Some pre-built utilities for tasks
-
---helper
-local function get_sigrun_wrapper(f,...)
-	local wrapper = function(...)
-		while true do
-			f(sched.wait(...))
-		end
-	end
-	log('sched', 'INFO', 'sigrun wrapper (%s) created from (%s)', 
-		wrapper,f)
-	return wrapper
-end
-
 --- Create a task that listens for a signal.
 -- @param f function to be called when the signal appears. The signal
 -- is passed to f as parameter. The signal will be provided as 
 -- emitter, event, parameters, just as the result of a @{wait}
 -- @param vararg a Wait Descriptor for the signal (see @{get_args})
 -- @return task in the scheduler
-Task._new_sigrun_task = function (f,...)
-	return Task( get_sigrun_wrapper(f,...) )
+Task.sigrun= function (f,...)
+    local ff=function()
+        while true do
+            f(sched.wait(false))
+        end
+    end
+	local t=Task(ff)
+    t:link(...)
+    return t
 end
-
---helper
-local function get_sigrunonce_wrapper(f,...)
-	local wrapper = function(...)
-		f(sched.wait(...))
-	end
-	return wrapper
-end
-
 --- Create a task that listens for a signal, once.
 -- @param f function to be called when the signal appears. The signal
 -- is passed to f as parameter. The signal will be provided as 
 -- _emitter, event, parameters_, just as the result of a @{wait}
 -- @param vararg a Wait Descriptor for the signal (see @{get_args})
 -- @return task in the scheduler
-Task._new_sigrunonce_task = function (f,...)
-	return Task( get_sigrunonce_wrapper(f,...))
+Task.sigrunonce= function (f,...)
+    local ff=function()
+        f(sched.wait(false))
+    end
+	local t=Task(ff)
+    t:link(...)
+    return t
 end
-
---- Create and run a task that listens for a signal.
--- @param f function to be called when the signal appears. The signal
--- is passed to f as parameter. The signal will be provided as 
--- _emitter, event, parameters_, just as the result of a @{wait}
--- @param vararg a Wait Descriptor for the signal (see @{get_args})
--- @return task in the scheduler
-Task._sigrun = function(f,...)
-	return Task._new_sigrun_task(f,...):run()
-end
-
---- Create and run a task that listens for a signal, once.
--- @param vararg a Wait Descriptor for the signal (see @{get_args})
--- @param f function to be called when the signal appears. The signal
--- is passed to f as parameter. The signal will be provided as 
--- _emitter, event, parameters_, just as the result of a @{wait}
--- @param attached if true, the new task will run in attached more
--- @return task in the scheduler (see @{taskd}).
-Task._sigrunonce = function(f,...)
-	return Task.new_sigrunonce_task(f,...):run()
-end
-
 end
 
 
@@ -556,34 +506,24 @@ Sync=Sync,
 
 sigonce=function(f) return Sync(f,'once') end,
 sighook=function(f) return Sync(f,'on') end,
-wait=function(...) return sched.running:wait() end,
-task=Task,
-sigrun=Task._sigrun,
-sigrunonce=Task._sigrunonce,
+wait=function(...) return sched.running:wait(...) end,
+sigrun=Task.sigrun,
+sigrunonce=Task.sigrunonce,
 
 --others
 }
-
-local renv=setmetatable({sched=sched},{__index=_G})
-
-sched.platform=require('platform',nil,nil,renv)
-platform=sched.platform
+local _require=function(p,t)
+    t=t or{}
+    t.env={sched=sched}
+    return require(p,t)
+end
+platform=_require'platform'
 
 os_time=platform.time
 
-sched.timer=require('timer',nil,nil,renv)
-timer=sched.timer
+timer=_require'timer'
 
-sched.pipe=require('pipe',nil,nil,renv)
-
-sched.SigPipe=class('SigPipe',sched.pipe,Obj)
-sched.sigpipe=sched.SigPipe
-do
-local S=sched.SigPipe
-function S:handle(...)
-    self:send{...}
-end
-end 
+_require'pipe'
 
 
 
@@ -643,26 +583,36 @@ function sched.loop ()
 		end
 		
 		if loop_state~='running' then sched.reset() break end
-		platform.step(timeout,date) -- Wait for platform events until the next timer is due
+		--debug.log(sched.debug())
+        platform.step(timeout) -- Wait for platform events until the next timer is due
 		sched.ready=false
 	end
 end
+
+function sched.debug()
+    local d={}
+    local t={}
+    for em,emt in pairs(fil) do
+        local tt={}
+        for ev,objt in pairs(emt) do
+            local ttt={}
+            for obj in pairs(objt) do
+                table.insert(ttt,debug.getinfo(obj))
+            end
+            tt[debug.getinfo(ev)]=ttt
+        end
+        t[debug.getinfo(em)]=tt
+    end
+    d.fil=t
+    return pstring(d)
+end
+
+local t={}
+for i,v in pairs(sched) do
+    if type(i)=='string' then t[i:lower()]=v end
+end
+for i,v in pairs(t) do sched[i]=v end
+
 sched.reset()
-
-sched.global={
-sched=sched,
-signal=sched.signal,
-emit=sched.emit,
-wait=sched.wait,
-
---sigonce=sched.sigonce,
---sighook=sched.sighook,
-
-task=sched.Task,
-pipe=sched.Pipe,
-sigpipe=sched.SigPipe,
-sigrun=sched.sigrun,
-sigrunonce=sched.sigrunonce,
-}
 end
 return sched

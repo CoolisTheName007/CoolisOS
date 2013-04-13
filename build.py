@@ -7,8 +7,8 @@ version='1.0'
 
 lua_path="C:\\lua\\LuaRocks\\2.0\\lua5.1.exe"
 diet_path=path.join('C:\\lua','LuaSrcDiet.lua')
-exclude={'dev'}
-exclude_key='dev'
+exclude={'impossibru'}
+exclude_key='impossibru'
 
 project_path=path.dirname(path.realpath(__file__))
 project_name=path.basename(project_path)
@@ -39,7 +39,7 @@ for dirpath, dirnames, filenames in os.walk(src_path):
             result=call([lua_path,diet_path,src,'-o',dst])
             if not(os.access(dst, os.F_OK)):
                 print(src)
-                not_passed[r_path]=result
+                not_passed[src]=result
                 shutil.copyfile(src, dst)
         else:
             shutil.copyfile(src, dst)
@@ -53,7 +53,7 @@ with open(dist_file_path,'w') as dist_file:
             r_src=path.join(r_path,filename)
             
             with open(src) as file:
-    			all=file.read()
+                all=file.read()
             dist_file.write('"'+r_src.replace('\\','/')+'",[===================[')
             dist_file.write(all)
             dist_file.write(']===================],')
@@ -72,32 +72,35 @@ with open(dist_file_path,'w') as dist_file:
     
     else
         local loc=shell.getRunningProgram()
-		local llen=loc:len()
-		local nlen=fs.getName(loc):len()
+        local llen=loc:len()
+        local nlen=fs.getName(loc):len()
         loc=loc:sub(1,(llen==nlen and 0 or llen-nlen-1))
         print(args[1])
-		print(loc)
-		local r=args[1] or loc
+        print(loc)
+        local r=args[1] or loc
         for i=1,#t,2 do
             p,v=t[i],t[i+1]
             p=fs.combine(r,p)
-            fs.delete(p)
-            if type(v)=='boolean' then
-                fs.makeDir(p)
-            else
-                local f=fs.open(p,'w')
-                f.write(v)
-                f.close()
-            end
+			if i~=1 then
+				fs.delete(p)
+			end
+			if type(v)=='boolean' then
+				fs.makeDir(p)
+			else
+				local f=fs.open(p,'w')
+				f.write(v)
+				f.close()
+			end
         end
         local r_s=args[2] and r or ''
-        fs.delete(fs.combine(r_s,'startup'))
-        local f=fs.open(fs.combine(r_s,'startup'),'w')
-        local s='/'..fs.combine(r,'CoolisOS/bin/kernel/init.lua')
-        f.write(string.format("shell.run('%s %s')",s,s))
-        f.close()
-        print('Running startup')
-        dofile(fs.combine(r_s,'startup'))
+		if not fs.exists('startup') then
+			fs.delete(fs.combine(r_s,'startup'))
+			local f=fs.open(fs.combine(r_s,'startup'),'w')
+			f.write(string.format("shell.run('%s')",s))
+			f.close()
+			print('Running startup')
+			dofile(fs.combine(r_s,'startup'))
+		end
     end
     
     ''')

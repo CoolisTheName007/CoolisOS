@@ -30,11 +30,13 @@ local os_time=os.clock
 local setmetatable=setmetatable
 local rawset=rawset
 local unpack=unpack
+local debug=debug
 
 env=getfenv()
 setmetatable(env,nil)
 
 local timer={}
+
 timer.norm=function(t) --the CC clock moves in steps of 0.05
 	t=t-t%0.05
 	-- if t<=0 then
@@ -125,8 +127,10 @@ local meta={
 }
 ---resets the timer module
 timer._reset=function()
-	events=setmetatable({[{}]='placeholder'},meta)
-	sched.fil.timer=events
+    local holder=sched.task(function() end)
+    debug.name(holder,'placeholder')
+	events=setmetatable({[{}]={[holder]=true}},meta)
+	sched.fil[timer]=events
 	link=linked()
 	link_r=link.r
 	timer.link=link
@@ -150,6 +154,6 @@ function C:handle(_,ev)
 end
 end
 timer.cyclic=CyclicTimer
-
-
+debug.name(timer,'timer')
+sched.timer=timer
 return timer

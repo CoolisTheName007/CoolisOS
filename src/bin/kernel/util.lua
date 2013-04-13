@@ -44,6 +44,9 @@ end
 
 -- Internal counter for unique ids generation
 local unique_id_counter = -1
+-- ========= Math utilities
+function _.format_number(n,r)     local e=10^r     local b=n%1     local a=n-b     local c=b*e     local c=c-c%1     return a+c/e end
+
 
 -- ========= Filesystem utilities
 function _.with(handle,f,...)
@@ -52,7 +55,7 @@ function _.with(handle,f,...)
   if not ok then error('util.with:'..err,2) end
   return ok,err
 end
---========== Table utilities
+-- ========== Table utilities
 function _.set(t,...)
 	local arg={...}
 	local t,n=t,#arg
@@ -79,6 +82,12 @@ function _.delete(t,...)
 		if t==nil then return nil end
 	end
 	t[arg[n]]=nil
+end
+
+function _.map_args(t,f)
+    local args = {}
+    for k = 1, table.maxn(t) do table.insert(args,f(t[k])) end
+    return args
 end
 
 

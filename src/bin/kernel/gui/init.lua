@@ -29,11 +29,20 @@ function Terminal:__init(term,emitter)
     check('native_terminal',term)
 	self.native=term
 	self.term=Term.from_native(term)
+    debug.namefield(self,'term')
     self.pout=sched.sigpipe()
-	self.renderer=sched.sigrun(function()
-		self.term:blit_native(self.native)
-		self.term:copyState(term)
-	end,{[self.term]={'*'}})
+    debug.namefield(self,'pout')
+	self.renderer=sched.task(function()
+        while true do
+            self.term:blit_native(self.native)
+            self.term:copyState(term)
+            self.term._calm=false
+            sched.wait(false)
+        end
+	end)
+    self.renderer:link{[self.term]={'*'}}
+    debug.namefield(self,'renderer')
+    self.renderer:run()
 	if term.isColor() then
 		self.pout:link{[emitter]=cc_events.mouse}
 	end
@@ -42,6 +51,9 @@ function Terminal:__init(term,emitter)
 	else
 		self.pout:link{[emitter]=cc_events.keyboard}
 	end
+    self.term:setSignals(true)
+    sched.signal(self.term,'*')
 end
 end
+
 

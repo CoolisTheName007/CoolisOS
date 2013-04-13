@@ -23,7 +23,10 @@ function check(s,...)
 	for typ in s:gmatch(',?([^,]+),?') do
 		i=i+1
 		if not check_one(typ,select(i,...)) then
-            local msg=string.format('arg%d:(%s) is not of type (%s)',i,tostring((debug and debug.getinfo or type)((select(i,...)))),typ)
+            local msg=string.format(
+            'arg%d:(%s) is not of type (%s);\n args=%s',
+            i,tostring((debug and debug.getinfo or type)((select(i,...)))),typ,
+            (debug.args_tostring(...)))
 			error(msg,3)
 		end
 	end

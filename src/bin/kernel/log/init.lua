@@ -171,13 +171,6 @@ end
 local function debug_getinfo(...)
 	return (base.debug and base.debug.getinfo or tostring)(...)
 end
-
-local function args_tostring(...)
-	local args = {}
-    local t = {...}
-    for k = 1, table.getn(t) do table.insert(args, k..":["..(debug_getinfo)(t[k]).."]") end
-	return table.concat(args,' ')
-end
 -------------------------------------------------------------------------------
 -- Prints out a log entry according to the module and the severity of the log entry.
 --
@@ -194,7 +187,7 @@ end
 function trace(module, severity, fmt, ...)
     check('string,string,string',module, severity, fmt)
     if not musttrace(module, severity) then return end
-    local c, s = pcall(string.format, fmt, unpack(util.map({...},function(k,v) return (type(v)=='number' and v or debug_getinfo(v)) end)))
+    local c, s = pcall(string.format,fmt, unpack(util.map_args({...},function(v) if (type(v)=='number' or type(v)=='string') then return v else return debug_getinfo(v) end end)))
     if c then
         local t
         local function sub(p)
@@ -210,7 +203,7 @@ function trace(module, severity, fmt, ...)
 		
         --trace(module, severity, "\targs=("..table.concat(args, " ")..")" )
         loggers(module, severity, "Error in the log formating! ("..tostring(s)..") - Fallback to raw printing:" )
-        loggers(module, severity, string.format("\tmodule=(%s), severity=(%s), format=(%q), args=(%s)", module, severity, fmt, args_tostring(...) ) )
+        loggers(module, severity, string.format("\tmodule=(%s), severity=(%s), format=(%q), args=(%s)", module, severity, fmt,table.concat(util.map_args({...},debug.getinfo),',') ))
     end
 end
 

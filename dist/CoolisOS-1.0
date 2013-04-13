@@ -1,0 +1,8287 @@
+local t={"CoolisOS",true,"CoolisOS/bin",true,"CoolisOS/bin/kernel",true,"CoolisOS/bin/kernel/debug.lua",[===================[include'kernel.class'
+local n=require'kernel.checker'.check
+local e={}
+local function o(t,o)
+local e={''}
+for a,t in t:gmatch('(%S+)(%s*)')do
+local i=e[#e]..a..t:gsub('\n','')
+if#i>o then
+table.insert(e,'')
+end
+if t:find('\n')then
+e[#e]=e[#e]..a
+t=t:gsub('\n',function()
+table.insert(e,'')
+return''
+end)
+else
+e[#e]=e[#e]..a..t
+end
+end
+return e
+end
+function e.step_print(a,e)
+local e=e or term
+local t,e=e.getSize()
+e=e-1
+local t=o(a,t)
+local i=#t%e
+local o=(#t-i)/e
+for a=0,o-1 do
+if a~=0 then write'\n'end
+write(table.concat(t,'\n',a*e+1,(a+1)*e))
+write('\nPress any key to continue')
+os.pullEvent('key')
+end
+write('\n')
+write(table.concat(t,'\n',o*e+1,o*e+i))
+write('\n')
+end
+function e.printError(...)
+if term.isColour()then
+term.setTextColour(colours.red)
+end
+local t={...}
+for a=1,#t do t[a]=tostring(t[a])end
+e.step_print(table.concat(t,''),term)
+term.setTextColour(colours.white)
+end
+do
+rawset(_G,'loadfile',function(t)
+local e=fs.open(t,"r")
+if e then
+local a,t=loadstring(e.readAll(),t)
+e.close()
+return a,t
+end
+return nil,"File not found"
+end)
+local i=function(t,e,i)
+local a=e or{}
+local o={}
+local e,n=a
+local t=2+(t or 0)
+repeat
+t=t+1
+o[e]=true
+n,e=pcall(error,'',t)
+if e:match('^[^:]+')=='bios'then break end
+table.insert(a,e)
+until(o[e]or(i and(t+1-2>i)))
+return a
+end
+local function o(a,o)
+local t={}
+local e
+for i,a in ipairs(a)do
+local a,o=o(a)
+if a~=nil then
+if e==nil or e.n~=a then
+table.insert(t,e)
+e={n=a}
+end
+table.insert(e,o)
+end
+end
+table.insert(t,e)
+return t
+end
+local function r(e)
+return o(e,function(e)return e:match('^([^:]+):(.*)')end)
+end
+local function h(e)
+return o(e,function(e)return e:match('^(%d+):(.*)')end)
+end
+local function s(e,a,t,o)
+local i,e=pcall(fs.open,e,'r')
+if not i or not e then table.insert(t,'  (could not open file)')
+else
+for t=1,o-a-1 do
+e.readLine()
+end
+for a=1,a do
+table.insert(t,'  '..e.readLine())
+end
+table.insert(t,'->'..e.readLine())
+for a=1,a do
+local e=e.readLine()
+if e then table.insert(t,'  '..e)
+else break end
+end
+end
+end
+local function n(e)
+local t={}
+for e,o in ipairs(r(e))do
+local e=o.n or'(no name)'
+local a
+if fs.exists(e)then
+e,dir,a=fs.getName(e),e:match('^(.*)/')or'/',e
+e=e..' ('..(dir or'unknown')..')'
+elseif false then
+end
+table.insert(t,e)
+for o,e in ipairs(h(o))do
+table.insert(t,' line '..(e.n or'(no line)')..', *'..(#e))
+local e=e.n and tonumber(e.n)or 1
+if a and e then
+s(a,1,t,e)
+end
+end
+end
+return t
+end
+function e.traceback(e,a,t)
+local a=a or 0
+local t=n(i(a+1,{},t))
+e=(e and'\n')..'['..(e or'debug.traceback')
+table.insert(t,1,e)
+return table.concat(t,'\n')..'\n]'
+end
+function e.printTraceback(t,a)
+e.printError(e.traceback(t,(a or 0)+1))
+end
+function e.tracebackError(t,a)
+error(e.traceback(t,(a or 0)+1),2)
+end
+end
+function e.raw(e)
+if type(e)=='table'then
+local t=getmetatable(e)
+if t then
+local a=rawget(t,'__tostring')
+rawset(t,'__tostring',nil)
+local e=tostring(e)
+rawset(t,'__tostring',a)
+return e
+else
+return tostring(e)
+end
+else
+return tostring(e)
+end
+end
+function e.log(...)
+return log('debug','DEBUG','(%s):\nMsg:\n\t%s\nFrom:%s',sched.running or'nil',e.args_tostring(...),e.traceback('',1,2))
+end
+function e.objinfo(t)
+return(e.named[t]and e.named[t]..'|'or'')
+..(typeof(t)=='object'and(classname(t)or e.raw(t))..' instance|'or'')
+..e.raw(t)or''
+end
+function e.getinfo(t)
+if type(t)=='table'then
+return e.objinfo(t)
+else
+return type(t)..':'..tostring(t)
+end
+end
+function e.args_tostring(...)
+local a={}
+local t={...}
+for o=1,table.maxn(t)do table.insert(a,(e.getinfo)(t[o]))end
+return table.concat(a,',')
+end
+function e.wrap(t)
+return function(...)
+local e={xpcall(t,e.traceback)}
+local t,e=e[1],e[2]
+if not t then error(e,2)end
+end
+end
+e.named=setmetatable({},{__mode='kv'})
+function e.name(t,a)
+e.named[t]=a
+return t
+end
+function e.namefield(o,a,t)
+t=t==nil and o[a]or t
+n('table,!nil,!nil',o,a,t)
+o[a]=t
+e.name(t,string.format('(%s).(%s)',e.getinfo(o),e.getinfo(a)))
+return t
+end
+return e]===================],"CoolisOS/bin/kernel/driver.lua",[===================[local e={}
+local a=peripheral
+function e.update()
+for o,t in ipairs(rs.getSides())do
+if a.isPresent(t)then
+e[t]=a.wrap(t)
+else
+e[t]=nil
+end
+end
+end
+return e]===================],"CoolisOS/bin/kernel/init.lua",[===================[function dump(t)
+local e=fs.open('dump','a')
+e.writeLine(t)
+e.close()
+end
+local h=shell.getRunningProgram()
+local function r(o)
+local t={}
+local e=printError
+local a='printError'
+local i=coroutine.status
+local i=function(n)
+coroutine.status=i
+for o,t in pairs(t)do
+rawset(t,a,e)
+end
+local t,a=pcall(o)
+if not t then
+e(a)
+end
+end
+for o=1,20 do
+local n,e=pcall(getfenv,o)
+if n then
+if rawget(e,a)~=nil and not t[e]then
+t[o]=e
+rawset(e,a,i)
+end
+end
+end
+coroutine.status=nil
+repeat
+os.pullEvent()
+until false
+end
+local function d()
+local e=string
+local e,o,i=rawset,rawget,type
+local a=getmetatable
+local s=getfenv(('').sub)
+e(_G,'getmetatable',nil)
+local function n(t)
+if i(t)=='string'then
+return s
+else
+return a(t)
+end
+end
+e(_G,'getmetatable',n)
+local s=setmetatable
+e(_G,'setmetatable',nil)
+local function h(a,t)
+if t and i(t)=="table"then
+local i=o(t,"__index")
+local o=o(t,"__newindex")
+e(t,"__index",nil)
+e(t,"__newindex",nil)
+local s=s(a,t)
+e(t,"__index",i)
+e(t,"__newindex",o)
+local t=n(a)
+e(t,"__index",i)
+e(t,"__newindex",o)
+return s
+else
+return s(a,t)
+end
+end
+e(_G,'setmetatable',h)
+e(_G,'loadfile',function(t)
+local e=fs.open(t,"r")
+if e then
+local t,a=loadstring(e.readAll(),t)
+e.close()
+return t,a
+end
+return nil,"File not found"
+end)
+end
+local function s()
+debug.name(sched.running,'shell')
+log.setLevel('sched','DEBUG')
+log.store.instant=true
+local e=require'kernel.gui'
+local t=e.Terminal(_G.term,sched.platform)
+local a=require'kernel.gui.shell'
+local e=require'kernel.class.Box'
+e{terminal=t}:run(a.main)
+sched.wait('end')
+end
+local e=function()
+d()
+do
+_FILE_PATH=h
+local e=(_FILE_PATH:match'(.*)bin/kernel/init%.lua'):sub(1,-2)
+rawset(_G,'_INSTALL_PATH',e)
+rawset(_G,'loadreq',dofile(fs.combine(_INSTALL_PATH,'bin/kernel/loadreq/init.lua')))
+rawset(_G,'require',loadreq.require)
+rawset(_G,'include',loadreq.include)
+loadreq.vars.paths=loadreq.vars.paths:gsub('%?',fs.combine(_INSTALL_PATH,'bin')..'/%?')..';'..loadreq.vars.paths..';'..loadreq.vars.paths:gsub('%?',_INSTALL_PATH..'/%?')
+end
+do
+local function e(t,a)
+rawset(_G,t,a)
+end
+e('util',require'kernel.util')
+e('log',require'kernel.log')
+log.store=require'kernel.log.store'
+log.store.reset()
+do
+local t=require'utils.serpent'
+e('pstring',function(e,a)return t.serialize(e,{debug=true,indent='  ',sortkeys=true,comment=true,maxlevel=a})end)
+e('pprint',function(e,t)
+debug.step_print(pstring(e))
+end)
+e('debug',require'kernel.debug')
+e('log',require'kernel.log')
+local e={
+net=require'kernel.net',
+sched=require'kernel.sched',
+}
+for a,t in pairs(require'kernel.class')do
+e[a]=t
+end
+for t,e in pairs(e)do
+rawset(_G,t,e)
+end
+end
+do
+os.sleep(0)
+local e=os
+local n=require'kernel.checker'.check
+local e=util.shcopy(e)
+local function t(i,a,t)
+return function(...)
+local o,e=nil,nil
+if a then o={a(...)}end
+e={i(...)}
+if t then t(e,o)end
+return unpack(e)
+end
+end
+e.version=function()
+return'1'
+end
+e.sleep=function(e)n('number',e)sched.wait(e)end
+rawset(_G,'sleep',e.sleep)
+rawset(_G,'os',e)
+end
+end
+local e=function(e)return log('init','INFO','task:(%s) says:%s',tostring(sched.running),e)end
+sched.task(function()
+debug.wrap(s)()
+end):run()
+sched.loop()
+log.store.flush()
+print'Press any key to shutdown'
+util.wait(os.pullEvent,{'char','q'},'char')
+os.shutdown()
+end
+r(function()
+local t,e=xpcall(e,function(e,t)
+if _G.debug then
+return _G.debug.traceback(e)
+else
+return e
+end
+end)
+if not t then
+if log then
+log('init','ERROR','%s',e)
+end
+if _G.debug then
+debug.printError(e)
+else
+printError(e)
+end
+end
+sleep(2)
+end)]===================],"CoolisOS/bin/kernel/net.lua",[===================[local t=getfenv(('').len)
+local e=t.__net or{}
+t.__net=e
+e.ids=e.ids or setmetatable({},{__mode='v'})
+local a=e.ids
+local t=os.getComputerID()
+a[t]=_G
+e.queueEvent=function(t,...)
+if e.ids[t]then
+ok,err=pcall(e.ids[t].os.queueEvent,...)
+if not ok then
+e.ids[t]=nil
+return
+end
+return true
+end
+end
+e.queueAll=function(...)
+local a={}
+for t in pairs(e.ids)do
+a[t]=e.queueEvent(t,...)
+end
+return a
+end
+e.rednet={
+send=function(a,t)
+return e.queueEvent(a,'rednet_message',os.getComputerID(),t,nil)
+end,
+broadcast=function(a,t)
+return e.queueAll('rednet_message',os.getComputerID(),t,nil)
+end,
+}
+return e]===================],"CoolisOS/bin/kernel/new_traceback.lua",[===================[do
+local function n(t,o)
+local e={''}
+for a,t in t:gmatch('(%S+)(%s*)')do
+local i=e[#e]..a..t:gsub('\n','')
+if#i>o then
+table.insert(e,'')
+end
+if t:find('\n')then
+e[#e]=e[#e]..a
+t=t:gsub('\n',function()
+table.insert(e,'')
+return''
+end)
+else
+e[#e]=e[#e]..a..t
+end
+end
+return e
+end
+function step_print(a,e)
+local e=e or term
+local t,e=e.getSize()
+local t=n(a,t)
+local o=#t%e
+local a=(#t-o)/e
+for a=0,a-1 do
+write(table.concat(t,'\n',a*e+1,(a+1)*e))
+os.pullEvent('key')
+end
+write(table.concat(t,'\n',a*e+1,a*e+o))
+os.pullEvent('key')
+write('\n')
+end
+rawset(_G,'printError',function(...)
+if term.isColour()then
+term.setTextColour(colours.red)
+end
+local e={...}
+for t=1,#e do e[t]=tostring(e[t])end
+step_print(table.concat(e,''),term)
+term.setTextColour(colours.white)
+end)
+end
+do
+rawset(_G,'loadfile',function(t)
+local e=fs.open(t,"r")
+if e then
+local t,a=loadstring(e.readAll(),t)
+e.close()
+return t,a
+end
+return nil,"File not found"
+end)
+local o=_G._error or error
+local a
+local s=function(a,e)
+local t=e or{}
+local i={}
+local e,n=t
+local a=1+(a or 0)
+repeat
+a=a+1
+i[e]=true
+n,e=pcall(o,'',a)
+if e:match('^[^:]+')=='bios'then break end
+table.insert(t,e)
+until(i[e])
+return t
+end
+local function i(t,o)
+local a={}
+local e
+for i,t in ipairs(t)do
+local t,o=o(t)
+if t~=nil then
+if e==nil or e.n~=t then
+table.insert(a,e)
+e={n=t}
+end
+table.insert(e,o)
+end
+end
+table.insert(a,e)
+return a
+end
+local function n(e)
+return i(e,function(e)return e:match('^([^:]+):(.*)')end)
+end
+local function h(e)
+return i(e,function(e)return e:match('^(%d+):(.*)')end)
+end
+local function r(e,a,t,o)
+local i,e=pcall(fs.open,e,'r')
+if not i or not e then table.insert(t,'  (could not open file)')
+else
+for t=1,o-a-1 do
+e.readLine()
+end
+for a=1,a do
+table.insert(t,'  '..e.readLine())
+end
+table.insert(t,'->'..e.readLine())
+for a=1,a do
+local e=e.readLine()
+if e then table.insert(t,'  '..e)
+else break end
+end
+end
+end
+local function i(e)
+local t={}
+for e,o in ipairs(n(e))do
+local e=o.n or'(no name)'
+local a
+if fs.exists(e)then
+e,dir,a=fs.getName(e),e:match('^(.*)/')or'/',e
+e=e..' ('..(dir or'unknown')..')'
+elseif false then
+end
+table.insert(t,e)
+for o,e in ipairs(h(o))do
+table.insert(t,' line '..(e.n or'(no line)')..', *'..(#e))
+local e=e.n and tonumber(e.n)or 1
+if a and e then
+r(a,1,t,e)
+end
+end
+end
+return t
+end
+a=function(t,e)
+if e and type(e)~='number'then a('expected arg2 to be nil or number,got '..type(e),1)end
+if t and type(t)~='string'then a('expected arg1 to be nil or string,got '..type(t),1)end
+e=e or 0
+local a=i(s(e+2,{}))
+t='\1'..(t or'')
+table.insert(a,1,t)
+o(table.concat(a,'\n'),e+2)
+end
+rawset(_G,'_error',o)
+rawset(_G,'error',a)
+rawset(_G,'toerror',function(e)
+if not e:match'^[^:]+:%d+:\1'then
+local t=i{e}
+table.insert(t,1,e)
+return table.concat(t,'\n')
+end
+return e
+end)
+end]===================],"CoolisOS/bin/kernel/util.lua",[===================[local A,m=error,pcall
+local i,o,e,t=next,type,unpack,select
+local v,h=setmetatable,getmetatable
+local c,_=table.insert,table.sort
+local u,T=table.remove,table.concat
+local E,x,b=math.randomseed,math.random,math.huge
+local l,p,d=math.floor,math.max,math.min
+local z=getfenv
+local n=e
+local t,s=pairs,ipairs
+local e={}
+local function j(t,e)return t>e end
+local function g(e,t)return e<t end
+local function f(e,t,a)return(e<t)and t or(e>a and a or e)end
+local function k(t,e)return e and true end
+local function q(e)return not e end
+local function w(a)
+local e
+for t,t in t(a)do e=(e or 0)+1 end
+return e
+end
+local function y(n,i,o,...)
+local a
+local o=o or e.identity
+for t,e in t(n)do
+if not a then a=o(e,...)
+else
+local e=o(e,...)
+a=i(a,e)and a or e
+end
+end
+return a
+end
+local r=-1
+function e.format_number(e,t)local t=10^t local a=e%1 local o=e-a local e=a*t local e=e-e%1 return o+e/t end
+function e.with(e,t,...)
+local a,t=m(t,e,...)
+if e and e.close then e:close()end
+if not a then A('util.with:'..t,2)end
+return a,t
+end
+function e.set(t,...)
+local e={...}
+local t,o=t,#e
+for a=1,(o-2)do
+t[e[a]]=t[e[a]]or{}
+t=t[e[a]]
+end
+t[e[o-1]]=e[o]
+end
+function e.get(e,...)
+local t={...}
+for a=1,#t do
+e=e[t[a]]
+if e==nil then return nil end
+end
+end
+function e.delete(e,...)
+local t={...}
+local a=#t
+for a=1,a-1 do
+e=e[t[a]]
+if e==nil then return nil end
+end
+e[t[a]]=nil
+end
+function e.map_args(e,o)
+local t={}
+for a=1,table.maxn(e)do table.insert(t,o(e[a]))end
+return t
+end
+function e.wait(o,i,...)
+local e,a
+repeat
+e={o(...)}
+a=true
+for t,o in t(i)do
+if e[t]~=nil and e[t]~=o then
+a=false
+break
+end
+end
+until a
+return e
+end
+function e.tnil(t)
+local e=i(t)
+if e then
+for a,o in i,t,e do
+t[e]=nil
+e=a
+end
+t[e]=nil
+end
+end
+function e.shcopy(a,e)
+e=e or{}
+for a,t in t(a)do
+e[a]=t
+end
+return e
+end
+local m
+m=function(i,s,a,n)
+a=a or{}
+i[s]=a
+for e,t in t(s)do
+if o(t)=='table'then
+if i[t]then
+a[e]=i[t]
+else
+if not(o(a[e])=='table')and(n or a[e]==nil)then
+a[e]={}
+end
+m(i,t,a[e],n)
+end
+elseif n or a[e]==nil then a[e]=t end
+end
+return a
+end
+e.copy=function(...)return m({},...)end
+function e.diff(s,n,i)
+local o={}
+local a={}
+local e=i and t or e.recursivepairs
+for e,t in e(s)do a[e]=t end
+for e,t in e(n)do
+if t~=a[e]then table.insert(o,e)end
+a[e]=nil
+end
+for e,t in t(a)do table.insert(o,e)end
+return o
+end
+function e.sortedpairs(a)
+local e={}
+local o=table.insert
+for t in t(a)do o(e,t)end
+table.sort(e)
+local t=0
+return function()
+t=t+1
+return e[t],a[e[t]]
+end
+end
+function e.recursivepairs(h,a)
+check('table,?|string',h,a)
+local function s(n,i,e)
+e[n]=true
+local h=i==""and i or"."
+for t,a in t(n)do
+t=h..tostring(t)
+if o(a)=='table'then
+if not e[a]then s(a,i..t,e)end
+else
+coroutine.yield(i..t,a)
+end
+end
+e[n]=nil
+end
+a=a or""
+return coroutine.wrap(function()s(h,cleanpath(a),{})end)
+end
+function e.multipairs(e,...)
+local e={tables={e,...},i=1,k=i(e)}
+local function n()
+if not e.i then return end
+local a=e.tables[e.i]
+local t,o=e.k,a[e.k]
+local o=i(a,t)
+while o==nil do
+e.i=e.i+1
+local t=e.tables[e.i]
+if not t then e.i=false;break
+else o=i(t)end
+end
+e.k=o
+return t,a[t]
+end
+return n,nil,nil
+end
+function e.each(a,o,...)
+if not e.isObject(a)then return end
+for e,t in t(a)do
+o(e,t,...)
+end
+return a
+end
+e.forEach=e.each
+function e.map(o,i,...)
+local a={}
+for e,t in t(o)do
+a[e]=i(e,t,...)
+end
+return a
+end
+e.collect=e.map
+function e.reduce(o,i,a)
+for t,e in t(o)do
+a=not a and e or i(a,e)
+end
+return a
+end
+e.inject=e.reduce
+e.foldl=e.reduce
+function e.reduceRight(t,o,a)
+return e.reduce(e.reverse(t),o,a)
+end
+e.injectr=e.reduceRight
+e.foldr=e.reduceRight
+function e.mapReduce(i,n,o)
+local a={}
+for t,e in t(i)do
+a[t]=not o and e or n(o,e)
+o=a[t]
+end
+return a
+end
+e.mapr=e.mapReduce
+function e.mapReduceRight(o,t,a)
+return e.mapReduce(e.reverse(o),t,a)
+end
+e.maprr=e.mapReduceRight
+function e.include(o,a)
+local i=e.isFunction(a)and a or e.isEqual
+for t,e in t(o)do
+if i(e,a)then return true end
+end
+return false
+end
+e.any=e.include
+e.some=e.include
+function e.detect(o,a)
+local i=e.isFunction(a)and a or e.isEqual
+for t,e in t(o)do
+if i(e,a)then return t end
+end
+end
+e.find=e.detect
+e.where=e.detect
+function e.select(o,a,...)
+local i=e.map(o,a,...)
+local a={}
+for e,t in t(i)do
+if t then a[#a+1]=o[e]end
+end
+return a
+end
+e.filter=e.select
+function e.reject(o,a,...)
+local i=e.map(o,a,...)
+local a={}
+for t,e in t(i)do
+if not e then a[#a+1]=o[t]end
+end
+return a
+end
+e.discard=e.reject
+function e.all(t,a,...)
+return((#e.select(e.map(t,a,...),k))==(#t))
+end
+e.every=e.all
+function e.invoke(t,a,...)
+local o={...}
+return e.map(t,function(i,t)
+if e.isObject(t)then
+if e.has(t,a)then
+if e.isCallable(t[a])then
+return t[a](t,n(o))
+else return t[a]
+end
+else
+if e.isCallable(a)then
+return a(t,n(o))
+end
+end
+elseif e.isCallable(a)then
+return a(t,n(o))
+end
+end)
+end
+function e.pluck(t,a)
+return e.reject(e.map(t,function(t,e)
+return e[a]
+end),
+q)
+end
+function e.max(t,e,...)
+return y(t,j,e,...)
+end
+function e.min(t,e,...)
+return y(t,g,e,...)
+end
+function e.shuffle(a,t)
+if t then E(t)end
+local t={}
+e.each(a,function(e,o)
+local a=l(x()*e)+1
+t[e]=t[a]
+t[a]=o
+end)
+return t
+end
+function e.same(a,t)
+return e.all(a,function(o,a)
+return e.include(t,a)
+end)
+and e.all(t,function(o,t)
+return e.include(a,t)
+end)
+end
+function e.sort(e,t)
+_(e,t)
+return e
+end
+function e.toArray(...)
+return{...}
+end
+function e.groupBy(i,a,...)
+local o={...}
+local t={}
+local o=e.isFunction(a)and a
+or(e.isString(a)and function(t,e)
+return e[a](e,n(o))
+end)
+if not o then return end
+e.each(i,function(e,a)
+local e=o(e,a)
+if t[e]then t[e][#t[e]+1]=a
+else t[e]={a}
+end
+end)
+return t
+end
+function e.countBy(i,o,...)
+local a={...}
+local t={}
+e.each(i,function(e,i)
+local e=o(e,i,n(a))
+t[e]=(t[e]or 0)+1
+end)
+return t
+end
+function e.size(...)
+local t={...}
+local a=t[1]
+if e.isNil(a)then
+return 0
+elseif e.isObject(a)then
+return w(t[1])
+else
+return w(t)
+end
+end
+function e.containsKeys(a,e)
+for e in t(e)do
+if not a[e]then return false end
+end
+return true
+end
+function e.sameKeys(a,t)
+e.each(a,function(e)
+if not t[e]then return false end
+end)
+e.each(t,function(e)
+if not a[e]then return false end
+end)
+return true
+end
+function e.reverse(t)
+local e={}
+for a=#t,1,-1 do
+e[#e+1]=t[a]
+end
+return e
+end
+function e.selectWhile(t,o,...)
+local a={}
+for t,e in s(t)do
+if o(t,e,...)then a[t]=e else break end
+end
+return a
+end
+e.takeWhile=e.selectWhile
+function e.dropWhile(a,o,...)
+local t
+for e,a in s(a)do
+if not o(e,a,...)then
+t=e
+break
+end
+end
+if e.isNil(t)then return{}end
+return e.rest(a,t)
+end
+e.rejectWhile=e.dropWhile
+function e.sortedIndex(t,o,a,i)
+local a=a or g
+if i then e.sort(t,a)end
+for e=1,#t do
+if not a(t[e],o)then return e end
+end
+return#t+1
+end
+function e.indexOf(e,a)
+for t=1,#e do
+if e[t]==a then return t end
+end
+end
+function e.lastIndexOf(t,a)
+local e=e.indexOf(e.reverse(t),a)
+if e then return#t-e+1 end
+end
+function e.add(t,...)
+e.each({...},function(a,e)c(t,1,e)end)
+return t
+end
+function e.push(t,...)
+e.each({...},function(a,e)t[#t+1]=e end)
+return t
+end
+function e.pop(t)
+local a=t[1]
+u(t,1)
+return a
+end
+e.shift=e.pop
+function e.unshift(e)
+local t=e[#e]
+u(e)
+return t
+end
+function e.removeRange(t,a,o)
+local t=e.clone(t)
+local n,i=(i(t)),#t
+if i<1 then return t end
+a=f(a or n,n,i)
+o=f(o or i,n,i)
+if o<a then return t end
+local o=o-a+1
+local a=a
+while o>0 do
+u(t,a)
+o=o-1
+end
+return t
+end
+e.rmRange=e.removeRange
+function e.slice(t,o,a)
+return e.select(t,function(e)
+return(e>=(o or i(t))and e<=(a or#t))
+end)
+end
+function e.first(t,a)
+local a=a or 1
+return e.slice(t,1,d(a,#t))
+end
+e.head=e.first
+e.take=e.first
+function e.initial(t,a)
+if a and a<0 then return end
+return e.slice(t,1,a and#t-(d(a,#t))or#t-1)
+end
+function e.last(a,t)
+if t and t<=0 then return end
+return e.slice(a,t and#a-d(t-1,#a-1)or 2,#a)
+end
+function e.rest(t,a)
+if a and a>#t then return{}end
+return e.slice(t,a and p(1,d(a,#t))or 1,#t)
+end
+e.tail=e.rest
+function e.compact(t)
+return e.reject(t,function(t,e)
+return not e
+end)
+end
+function e.flatten(n,a)
+local i=a or false
+local o
+local a={}
+for n,t in t(n)do
+if e.isObject(t)and not i then
+o=e.flatten(t)
+e.each(o,function(t,e)a[#a+1]=e end)
+else a[#a+1]=t
+end
+end
+return a
+end
+function e.difference(t,...)
+local a=e.toArray(...)
+return e.select(t,function(o,t)
+return not e.include(a,t)
+end)
+end
+e.without=e.difference
+function e.uniq(a,o,t,...)
+local a=t and e.map(a,t,...)or a
+local t={}
+if not o then
+for o,a in s(a)do
+if not e.include(t,a)then
+t[#t+1]=a
+end
+end
+return t
+end
+t[#t+1]=a[1]
+for e=2,#a do
+if a[e]~=t[#t]then
+t[#t+1]=a[e]
+end
+end
+return t
+end
+e.unique=e.uniq
+function e.union(...)
+return e.uniq(e.flatten({...}))
+end
+function e.intersection(t,...)
+local o={...}
+local a={}
+for i,t in s(t)do
+if e.all(o,function(o,a)
+return e.include(a,t)
+end)then
+c(a,t)
+end
+end
+return a
+end
+function e.zip(...)
+local t={...}
+local o=e.max(e.map(t,function(t,e)
+return#e
+end))
+local a={}
+for o=1,o do
+a[o]=e.pluck(t,o)
+end
+return a
+end
+function e.append(a,t)
+local e={}
+for t,a in s(a)do e[t]=a end
+for a,t in s(t)do e[#e+1]=t end
+return e
+end
+function e.range(...)
+local t={...}
+local o,i,a
+if#t==0 then return{}
+elseif#t==1 then i,o,a=t[1],0,1
+elseif#t==2 then o,i,a=t[1],t[2],1
+elseif#t==3 then o,i,a=t[1],t[2],t[3]
+end
+if(a and a==0)then return{}end
+local t={}
+local i=p(l((i-o)/a),0)
+for e=1,i do t[#t+1]=o+a*e end
+if#t>0 then c(t,1,o)end
+return t
+end
+e.count=e.range
+function e.invert(a)
+local t={}
+e.each(a,function(a,e)t[e]=a end)
+return t
+end
+e.mirror=e.invert
+function e.concat(t,i,o,a)
+local t=e.map(t,function(t,e)
+return tostring(e)
+end)
+return T(t,i,o,a)
+end
+e.join=e.concat
+function e.identity(e)
+return e
+end
+function e.once(a)
+local e=0
+local t={}
+return function(...)
+e=e+1
+if e<=1 then t={...}end
+return a(n(t))
+end
+end
+function e.memoize(a,o)
+local t=v({},{__mode='kv'})
+local o=o or e.identity
+return function(...)
+local e=o(...)
+local o=t[e]
+if not o then t[e]=a(...)end
+return t[e]
+end
+end
+e.cache=e.memoize
+function e.after(t,e)
+local a,e=e,0
+return function(...)
+e=e+1
+if e>=a then return t(...)end
+end
+end
+function e.compose(...)
+local a=e.reverse{...}
+return function(...)
+local e
+for a,t in t(a)do
+e=e and t(e)or t(...)
+end
+return e
+end
+end
+function e.wrap(e,t)
+return function(...)
+return t(e,...)
+end
+end
+function e.times(t,a,...)
+local e={}
+for t=1,t do
+e[t]=a(t,...)
+end
+return e
+end
+function e.bind(e,t)
+return function(...)
+return e(t,...)
+end
+end
+function e.bindn(a,...)
+local t={...}
+return function(...)
+return a(n(e.append(t,{...})))
+end
+end
+function e.uniqueId(t,...)
+r=r+1
+if t then
+if e.isString(t)then
+return t:format(r)
+elseif e.isFunction(t)then
+return t(r,...)
+end
+end
+return r
+end
+e.uId=e.uniqueId
+function e.keys(a)
+local t={}
+e.each(a,function(e,a)t[#t+1]=e end)
+return t
+end
+function e.values(a)
+local t={}
+e.each(a,function(a,e)t[#t+1]=e end)
+return t
+end
+function e.pairs(a)
+local t={}
+e.each(a,function(e,a)
+t[#t+1]={e,a}
+end)
+return t
+end
+function e.extend(a,...)
+local t={...}
+e.each(t,function(o,t)
+if e.isObject(t)then
+e.each(t,function(t,e)
+a[t]=e
+end)
+end
+end)
+return a
+end
+function e.functions(a,t)
+if not a then return e.sort(e.keys(e))end
+local t=t or{}
+e.each(a,function(o,a)
+if e.isFunction(a)then
+t[#t+1]=o
+end
+end)
+local a=h(a)
+if a and a.__index then
+e.functions(a.__index,t)
+end
+return e.sort(t)
+end
+e.methods=e.functions
+function e.clone(a,i)
+if not e.isObject(a)then return a end
+local t={}
+e.each(a,function(o,a)
+if e.isObject(a)then
+if not i then
+t[o]=e.clone(a,i)
+else t[o]=a
+end
+else
+t[o]=a
+end
+end)
+return t
+end
+function e.has(t,e)
+return t[e]~=nil
+end
+function e.pick(t,...)
+local o=e.flatten{...}
+local a={}
+e.each(o,function(o,e)
+if t[e]then
+a[e]=t[e]
+end
+end)
+return a
+end
+e.choose=e.pick
+function e.omit(a,...)
+local o=e.flatten{...}
+local t={}
+e.each(a,function(a,i)
+if not e.include(o,a)then
+t[a]=i
+end
+end)
+return t
+end
+e.drop=e.omit
+function e.template(t,a)
+e.each(a,function(e,a)
+if not t[e]then
+t[e]=a
+end
+end)
+return t
+end
+e.defaults=e.template
+function e.isEqual(i,a,n)
+local s=o(i)
+local o=o(a)
+if s~=o then return false end
+if s~='table'then return(i==a)end
+local s=h(i)
+local o=h(a)
+if n then
+if s or o and s.__eq or o.__eq then
+return(i==a)
+end
+end
+if e.size(i)~=e.size(a)then return false end
+for t,o in t(i)do
+local t=a[t]
+if e.isNil(t)or not e.isEqual(o,t,n)then return false end
+end
+for t,a in t(a)do
+local t=i[t]
+if e.isNil(t)then return false end
+end
+return true
+end
+function e.result(a,t,...)
+if a[t]then
+if e.isCallable(a[t])then
+return a[t](a,...)
+else return a[t]
+end
+end
+if e.isCallable(t)then
+return t(a,...)
+end
+end
+function e.isObject(e)
+return o(e)=='table'
+end
+function e.isCallable(t)
+return(e.isFunction(t)or
+(e.isObject(t)and h(t)
+and h(t).__call~=nil)or false)
+end
+function e.isArray(t)
+if not e.isObject(t)then return false end
+return e.all(e.keys(t),function(a,t)
+return e.isNumber(t)and(l(t)==t)
+end)
+end
+function e.isEmpty(t)
+if e.isString(t)then return#t==0 end
+if e.isObject(t)then return i(t)==nil end
+return true
+end
+function e.isString(e)
+return o(e)=='string'
+end
+function e.isFunction(e)
+return o(e)=='function'
+end
+function e.isNil(e)
+return e==nil
+end
+function e.isFinite(t)
+if not e.isNumber(t)then return false end
+return t>-b and t<b
+end
+function e.isNumber(e)
+return o(e)=='number'
+end
+function e.isNaN(t)
+return e.isNumber(t)and t~=t
+end
+function e.isBoolean(e)
+return o(e)=='boolean'
+end
+local function a()
+local t=e.functions()
+local a=z()
+e.each(t,function(o,t)
+a[t]=e[t]
+end)
+end
+local t=a
+local t={import=a,mixin=t}
+t.__index=t
+return v(e,t)]===================],"CoolisOS/bin/kernel/checker",true,"CoolisOS/bin/kernel/checker/init.lua",[===================[local o=require'kernel.class'.classname
+custom={}
+function conforms(e,t)
+local a=e:sub(1,1)
+return e=="?"
+or(a=="?"and(t==nil or conforms(e:sub(2,-1),t)))
+or(a=="!"and not(conforms(e:sub(2,-1),t)))
+or type(t)==e
+or o(t)==e
+or(custom[e]and custom[e](t))
+end
+function check_one(t,e)
+for t in t:gmatch('|?([^|]+)|?')do
+if conforms(t,e)then return true end
+end
+return false
+end
+function check(t,...)
+if type(t)~='string'then error('arg1 is not of type string',2)end
+local e=0
+for t in t:gmatch(',?([^,]+),?')do
+e=e+1
+if not check_one(t,select(e,...))then
+local e=string.format(
+'arg%d:(%s) is not of type (%s);\n args=%s',
+e,tostring((debug and debug.getinfo or type)((select(e,...)))),t,
+(debug.args_tostring(...)))
+error(e,3)
+end
+end
+end]===================],"CoolisOS/bin/kernel/class",true,"CoolisOS/bin/kernel/class/Box.lua",[===================[include'kernel.class'
+local e=require'kernel.class.Opt'
+local t=sched.pipe
+class.Box()
+do
+local e=e{
+pin=e(t),
+pout=e(t),
+perr=e(t),
+terminal=e(nil,'req'),
+env=e(function()
+local e=setmetatable({},{__index=_G})
+e._G=e
+return e
+end)
+}
+function Box:__init(t)
+e:drop(self,t)
+self.env.process=self
+self.env.print=function(...)
+local e={...}
+for e=1,table.getn(e)do
+self.pout:send(tostring(arg[e]))
+end
+end
+self.env.read=function(e)
+return self.pin:receive(e)
+end
+self.env.terminal=self.terminal
+end
+function Box:run(e,...)
+setfenv(e,self.env)
+return e(...)
+end
+end
+return Box]===================],"CoolisOS/bin/kernel/class/init.lua",[===================[local i
+if keep_ambiguous then
+i={_type='ambiguous'}
+local function e(e)
+return function()
+error('Invalid '..e..' on ambiguous')
+end
+end
+local e=
+{
+__add=e('addition'),
+__sub=e('substraction'),
+__mul=e('multiplication'),
+__div=e('division'),
+__mod=e('modulus operation'),
+__pow=e('exponentiation'),
+__unm=e('unary minus'),
+__concat=e('concatenation'),
+__len=e('length operation'),
+__eq=e('equality comparison'),
+__lt=e('less than'),
+__le=e('less or equal'),
+__index=e('indexing'),
+__newindex=e('new indexing'),
+__call=e('call'),
+__tostring=function()return'ambiguous'end,
+__tonumber=e('conversion to number')
+}
+setmetatable(i,e)
+end
+local h=
+{
+__index=true,
+__newindex=true,
+__type=true,
+__class=true,
+__bases=true,
+__inherited=true,
+__from=true,
+__shared=true,
+__user_init=true,
+__name=true,
+__initialized=true,
+__root=true,
+}
+local a=
+{
+__init='__user_init',
+__set='__user_set',
+__get='__user_get'
+}
+local o={}
+o.__index=o
+function o:__newindex(e,t)
+if a[e]then e=a[e]end
+if e=='__user_get'then
+self.__index=t and function(o,e)
+local a=self[e]
+if a==nil and not h[e]then a=t(o,e)end
+return a
+end or self
+elseif e=='__user_set'then
+self.__newindex=t and function(o,e,a)
+if h[e]or not t(o,e,a)then rawset(o,e,a)end
+end or nil
+end
+rawset(self,e,t)
+end
+local function d(t,s,r,o)
+if r then
+local e=s[t]
+if e then return e end
+end
+local e={__type='object'}
+if o==nil then
+o=e
+end
+e.__root=o
+e[t.__name]=e
+local n=#t.__bases
+if n>0 then
+local a={}
+local h={}
+for n=1,n do
+local n=t.__bases[n]
+local t=d(n,s,t.__shared[n],o)
+e[n.__name]=t
+for e,t in pairs(t)do
+if not h[e]then
+if not a[e]then a[e]=t
+elseif a[e]~=t then
+a[e]=i
+table.insert(h,e)
+end
+end
+end
+end
+for t,a in pairs(a)do
+if not e[t]then e[t]=a end
+end
+end
+setmetatable(e,t)
+if r then s[t]=e end
+return e
+end
+function o:__call(...)
+local e=d(self,{},false)
+e:__init(...)
+return e
+end
+function o:implements(a)
+local function t(e)
+if e==i then return false end
+if type(e)=='function'then return true end
+local e=getmetatable(e)
+return e and type(e.__call)=='function'
+end
+for e,a in pairs(a)do
+if not h[e]and t(a)and not t(self[e])then
+return false
+end
+end
+return true
+end
+function o:is_a(e)
+if self.__class==e then return true end
+local function t(a,e)
+for o=1,#e do
+local e=e[o]
+if e==a or t(a,e.__bases)then
+return true
+end
+end
+return false
+end
+if not t(e,self.__bases)then return false end
+return self:implements(e)
+end
+function o:__init(...)
+if self.__initialized then return end
+if self.__user_init then self:__user_init(...)end
+for e=1,#self.__bases do
+local e=self.__bases[e]
+self[e.__name]:__init(...)
+end
+self.__initialized=true
+end
+function ofType(e)
+local e=type(e)
+return e=='table'and classname(e)or e
+end
+function typeof(t)
+local e=type(t)
+return e=='table'and t.__type or e
+end
+function classof(e)
+local t=type(e)
+return t=='table'and e.__class or nil
+end
+function classname(e)
+if not classof(e)then return nil end
+local e=e.__name
+return type(e)=='string'and e or nil
+end
+function implements(e,t)
+return classof(e)and e:implements(t)or false
+end
+function is_a(e,t)
+return classof(e)and e:is_a(t)or false
+end
+class={}
+local d={}
+setmetatable(class,d)
+function d:__call(...)
+local e={...}
+local t=
+{
+__type='class',
+__bases={},
+__shared={}
+}
+t.__class=t
+t.__index=t
+if type(e[1])=='string'then
+t.__name=e[1]
+table.remove(e,1)
+else
+t.__name=t
+end
+local n={}
+local s={}
+local d={}
+for r=1,#e do
+local a=e[r]
+local e=typeof(a)
+local o=e=='share'
+assert(e=='class'or o,
+'Base '..r..' is not a class or shared class')
+if o then a=a.__class end
+assert(t.__shared[a]==nil,'Base '..r..' is duplicated')
+t.__bases[r]=a
+t.__shared[a]=o
+for e,r in pairs(a)do
+if type(r)=='function'and not h[e]and(type(e)=='string'and not e:match'^_[^_]')and
+not d[e]then
+local t
+local h=a.__inherited[e]
+if h then
+if h~=r then
+a.__inherited[e]=nil
+a.__from[e]=nil
+else
+t=a.__from[e]
+end
+end
+t=t or{class=a,shared=o}
+local a=s[e]
+if not a then
+s[e]=t
+local t=t.class
+n[e]=function(a,...)
+return t[e](a[t.__name],...)
+end
+elseif a.class~=t.class or
+not a.shared or not t.shared then
+n[e]=i
+table.insert(d,e)
+s[e]=nil
+end
+end
+end
+end
+setmetatable(t,o)
+for e,a in pairs(n)do t[e]=a end
+t.__inherited=n
+t.__from=s
+return t
+end
+function d:__index(e)
+return function(...)
+local t=class(e,...)
+local a=getfenv(2)
+a[e]=t
+return t
+end
+end
+function shared(e)
+assert(typeof(e)=='class','Argument is not a class')
+return{__type='share',__class=e}
+end
+]===================],"CoolisOS/bin/kernel/class/Opt.lua",[===================[class.Opt()
+function Opt:__init(e,t,...)
+self.typ=t or(typeof(e))
+self.val=e
+self.args={...}
+end
+function Opt:drop(a,e,o)
+local t=self.typ
+if t=='req'then
+if e==nil then error(string.format('parameter %s required',tostring(o)))
+else return e end
+elseif t=='function'then return self.val(unpack(self.args))
+elseif t=='raw'then
+if e==nil then return self.val else return e end
+elseif t=='object'then return e==nil and(self.val.clone and self.val:clone()or self.val.__class(self.val))or e
+elseif t=='class'then return self.val(unpack(self.args))
+elseif t=='table'then
+a=a or{}
+e=e or{}
+for t,o in pairs(self.val)do
+if classof(o)==Opt then
+a[t]=o:drop(nil,e[t],t)
+else
+if e[t]~=nil then
+o=e[t]
+end
+a[t]=o
+end
+end
+return a
+end
+end
+return Opt]===================],"CoolisOS/bin/kernel/class/Var.lua",[===================[include'kernel.class'
+local e=require'kernel.checker'
+local o=require'utils.serpent'.dump
+local a=require'kernel.util'
+class.Var()
+local e=setmetatable({},{__mode='k'})
+function Var:__init(t,a)
+e[self]={}
+e[self].file=t
+local e=loadreq.getDir(e[self].file)
+if not fs.exists(e)then fs.makeDir(e)end
+if not fs.exists(t)then self:setAll{}end
+end
+function Var:getAll()
+local t
+a.with(fs.open(e[self].file,'r'),function(e)
+t=e.readAll()
+end)
+local e=loadstring(t)()
+return e
+end
+function Var:setAll(t)
+a.with(fs.open(e[self].file,'w'),function(e)
+e.write(o(t))
+end)
+end
+function Var:__get(e)
+return self:getAll()[e]
+end
+function Var:__set(t,a)
+local e=self:getAll()
+e[t]=a
+self:setAll(e)
+return true
+end
+return Var]===================],"CoolisOS/bin/kernel/gui",true,"CoolisOS/bin/kernel/gui/EvtH.lua",[===================[class.EvtH()
+do
+function EvtH:__init()
+
+end
+
+function EvtH:destroy()
+
+end
+function EvtH:queue()
+	
+end
+wxEvtHandler::Connect
+function EvtH:connect(src,event,f,...)
+	local cast=src.EvtH
+	local t=cast.dst[event] or setmetatable({},{__mode='k'})
+	cast.dst[event][self]=true
+	
+	t=self.handlers[event] or {}
+	self.handlers[event]=t
+	t[f]={...}
+end
+
+wxEvtHandler::Disconnect
+function EvtH:disconnect(src,event,f,this)
+	srcs=src and {src=true} or self.src
+	for src in pairs(srcs) do
+		events=event and {event=src[event]} or src.dst
+		for event,evth in pairs(events) do
+			fs=f and {f}
+		end
+	end
+end
+wxEvtHandler::GetClientData
+function EvtH:()
+
+end
+wxEvtHandler::GetClientObject
+function EvtH:()
+
+end
+wxEvtHandler::GetEvtHandlerEnabled
+function EvtH:isEnabled()
+
+end
+wxEvtHandler::GetNextHandler
+function EvtH:next()
+
+end
+wxEvtHandler::GetPreviousHandler
+function EvtH:previous()
+
+end
+wxEvtHandler::ProcessEvent
+function EvtH:process()
+
+end
+wxEvtHandler::SearchEventTable
+function EvtH:search()
+
+end
+wxEvtHandler::SetClientData
+function EvtH:()
+
+end
+wxEvtHandler::SetClientObject
+function EvtH:()
+
+end
+function EvtH:setEnabled()
+
+end
+function EvtH:setNext()
+
+end
+function EvtH:setPrevious()
+
+end
+end]===================],"CoolisOS/bin/kernel/gui/init.lua",[===================[include'kernel.class'
+local t=require'kernel.sched'
+local e=require'kernel.checker'
+local i=e.check
+Term=require'Term'
+local function e(a,e,t,i,o)
+a['set'..e]=i or function(o,e)o[t]=e end
+a['get'..e]=o or function(e)return e[t]end
+end
+local a={
+mouse={
+'mouse_click',
+'mouse_scroll',
+'mouse_drag',
+},
+touch={
+'monitor_touch',
+},
+keyboard={
+'key',
+'char',
+},
+}
+class.Terminal()
+do
+function Terminal:__init(e,o)
+i('native_terminal',e)
+self.native=e
+self.term=Term.from_native(e)
+debug.namefield(self,'term')
+self.pout=t.sigpipe()
+debug.namefield(self,'pout')
+self.renderer=t.task(function()
+while true do
+self.term:blit_native(self.native)
+self.term:copyState(e)
+self.term._calm=false
+t.wait(false)
+end
+end)
+self.renderer:link{[self.term]={'*'}}
+debug.namefield(self,'renderer')
+self.renderer:run()
+if e.isColor()then
+self.pout:link{[o]=a.mouse}
+end
+if e.setTextScale then
+self.pout:link{[o]=a.touch}
+else
+self.pout:link{[o]=a.keyboard}
+end
+self.term:setSignals(true)
+t.signal(self.term,'*')
+end
+end
+]===================],"CoolisOS/bin/kernel/gui/Point.lua",[===================[include'kernel.class'
+local e=require'kernel.checker'.check
+class.Point()
+function Point:__init(t,e)
+return self:assign(t,e)
+end
+function Point:assign(t,a)
+if(not a)then
+e('Point',t)
+self.x=t.x
+self.y=t.y
+else
+e('number,number',t,a)
+self.x=t
+self.y=a
+end
+return self
+end
+function Point:clone()
+return Point(self)
+end
+function Point:add(t,a)
+if(not a)then
+e('Point',t)
+self.x=self.x+t.x
+self.y=self.y+t.y
+else
+e('number,number',t,a)
+self.x=self.x+t
+self.y=self.y+a
+end
+return self
+end
+function Point:sub(t,a)
+if(not a)then
+e('Point',t)
+return self:add(-t.x,-t.y)
+else
+e('number,number',t,a)
+return self:add(-t,-a)
+end
+end
+function Point:equal(t)
+e('Point',t)
+return self.x==t.x and self.y==t.y
+end
+function Point:__tostring()
+return'('..self.x..','..self.y..')'
+end
+return Point
+]===================],"CoolisOS/bin/kernel/gui/Rectangle.lua",[===================[include'kernel.class'
+local a=require'kernel.gui.Point'
+class.Rectangle()
+function Rectangle:__init(e,t,a,o)
+self:assign(e,t,a,o)
+end
+function Rectangle:assign(e,t,o,i)
+if(not t)then
+self.s=e.s:clone()
+self.e=e.e:clone()
+elseif(not o)then
+self.s=e:clone()
+self.e=t:clone()
+else
+self.s=a(e,t)
+self.e=a(o,i)
+end
+return self
+end
+function Rectangle:size()
+return self.e:clone():sub(self.s)
+end
+function Rectangle:clone()
+return Rectangle(self)
+end
+function Rectangle:move(e,t)
+self.s:add(e,t)
+self.e:add(e,t)
+return self
+end
+function Rectangle:grow(e,t)
+self.s:sub(e,t)
+self.e:add(e,t)
+return self
+end
+function Rectangle:intersect(a)
+local t,e=self.s,self.e
+t.x=max(t.x,a.s.x)
+t.y=max(t.y,a.s.y)
+e.x=min(e.x,a.e.x)
+e.y=min(e.y,a.e.y)
+return self
+end
+function Rectangle:union(e)
+local a,t=self.s,self.e
+a.x=min(a.x,e.s.x)
+a.y=min(a.y,e.s.y)
+t.x=max(t.x,e.e.x)
+t.y=max(t.y,e.e.y)
+return self
+end
+function Rectangle:equal(e)
+return self.s:equal(e.s)and self.e:equal(e.e)
+end
+function Rectangle:contains(t,e)
+return t>=self.s.x and t<self.e.x and e>=self.s.y and e<self.e.y
+end
+function Rectangle:empty()
+return self.s.x>=self.e.x or self.s.y>=self.e.y
+end
+function Rectangle:nempty()
+return not self:empty()
+end
+function Rectangle:__tostring()
+if(self:empty())then
+return'rect (empty)'
+else
+return'rect ('..self.s:tostring()..','..self.e:tostring()..')'
+end
+end
+return Rectangle]===================],"CoolisOS/bin/kernel/gui/shell.lua",[===================[local h={}
+function h.main()
+h.env=getfenv()
+local y=sched.pipe()
+sched.task(sched.pump):run(
+terminal.pout,
+function(e)if e[2]=='char'or e[2]=='key'then table.remove(e,1)return e end end,
+y)
+local a=terminal.term:wrap()
+function write(e)
+local n,t=a.getSize()
+local o,i=a.getCursorPos()
+local s=0
+local function h()
+if i+1<=t then
+a.setCursorPos(1,i+1)
+else
+a.setCursorPos(1,t)
+a.scroll(1)
+end
+o,i=a.getCursorPos()
+s=s+1
+end
+while string.len(e)>0 do
+local t=string.match(e,"^[ \t]+")
+if t then
+a.write(t)
+o,i=a.getCursorPos()
+e=string.sub(e,string.len(t)+1)
+end
+local t=string.match(e,"^\n")
+if t then
+h()
+e=string.sub(e,2)
+end
+local t=string.match(e,"^[^ \t\n]+")
+if t then
+e=string.sub(e,string.len(t)+1)
+if string.len(t)>n then
+while string.len(t)>0 do
+if o>n then
+h()
+end
+a.write(t)
+t=string.sub(t,(n-o)+2)
+o,i=a.getCursorPos()
+end
+else
+if o+string.len(t)-1>n then
+h()
+end
+a.write(t)
+o,i=a.getCursorPos()
+end
+end
+end
+return s
+end
+function print(...)
+local e=0
+for a,t in ipairs({...})do
+e=e+write(tostring(t))
+end
+e=e+write("\n")
+return e
+end
+function printError(...)
+if a.isColour()then
+a.setTextColour(colours.red)
+end
+print(...)
+a.setTextColour(colours.white)
+end
+local s={}
+do
+local i,n,e,h
+local function r(n,e,t)
+local a={}
+local o
+local i=0
+e=e or 1
+t=t or#n
+for e=e,t do
+local e=n[e]
+if not e then break
+elseif e==''then
+i=i+1
+else
+table.insert(a,o)
+o=e
+end
+end
+table.insert(a,o)
+return table.concat(a,'.',1,t-e+1-i)
+end
+function n(t,e)
+local e=type(e)=='string'and i(e)or e
+local a=table.remove(e)
+if not a then return t end
+local e=h(t,e)
+return e and e[a]
+end
+function i(a)
+local i={}
+local o,t,e=1
+repeat
+t=a:find(".",o,true)or#a+1
+e=a:sub(o,t-1)
+e=tonumber(e)or e
+if e and e~=""then table.insert(i,e)end
+o=t+1
+until t==#a+1
+return i
+end
+function h(a,e,o)
+e=type(e)=="string"and i(e)or e
+for n,i in ipairs(e)do
+local t=a[i]
+if type(t)~="table"then
+if not o or(o=="noowr"and t~=nil)then return nil,r(e,1,n)
+else t={}a[i]=t end
+end
+a=t
+end
+return a
+end
+s.get=n
+end
+local function r(e,a)
+a=a or _G
+e=e or""
+e=e:match("([%w_][%w_%.%:]*)$")or""
+if e==''then e='.'end
+local e,n,t=e:match("$(.-)([%.%:]?)([^%.%:]*)$")
+local i=s.get(a,e)
+local s=n==":"
+local a={}
+local function o(e,i)
+if type(e)~='table'then return end
+for a,e in pairs(e)do
+local o=type(e)
+if type(a)=='string'and a:match("^"..t)and(not s or o=='function'or(o=='table'and getmetatable(e)and getmetatable(e).__call))then i[a]=true end
+end
+end
+o(i,a)
+if n==":"or n=="."then
+local e=getmetatable(i)
+if e then
+local t,i=e.__index,e.__newindex
+o(t,a)
+if i~=t then o(i,a)end
+if e~=t and e~=i then o(e,a)end
+end
+end
+local e={}
+for t,a in pairs(a)do table.insert(e,t)end
+table.sort(e)
+if t==e[1]then
+local t=i[t]
+local a=type(t)
+if a=='function'then e[1]=e[1].."("
+elseif getmetatable(t)and getmetatable(t).__index then
+e[1]=e[1]..":"
+elseif a=='table'then e[1]=e[1].."."
+end
+end
+t=t or''
+return e,t:len()
+end
+local function p(t,e)
+if t:sub(e,e)==' 'then
+return''
+end
+local t=t:reverse()
+sLeft=t:match('[^_]*',t:len()-e):reverse()
+return sLeft
+end
+local function o(e)
+return(e:gsub('%%','%%%%')
+:gsub('%^','%%%^')
+:gsub('%$','%%%$')
+:gsub('%(','%%%(')
+:gsub('%)','%%%)')
+:gsub('%.','%%%.')
+:gsub('%[','%%%[')
+:gsub('%]','%%%]')
+:gsub('%*','%%%*')
+:gsub('%+','%%%+')
+:gsub('%-','%%%-')
+:gsub('%?','%%%?'))
+end
+function get_fs_matches(t)
+local e={}
+local t=t:match([[[^%[%]%'%"]+$]])or""
+local a,i,t=t:match("^(.-)([/\\]?)([^/\\]*)$")
+local a=_G.shell and _G.shell.resolve(a)or a
+if fs.isDir(a)then
+local a,i=pcall(fs.list,a)
+if a then
+local a=nil
+local o="^"..o(t)..'.*'
+for i,t in ipairs(i)do
+a=string.match(t,o)
+if a then
+table.insert(e,a)
+end
+end
+end
+end
+table.sort(e)
+if t==e[1]then
+local o=e[1]
+if fs.isDir(a..'/'..t)then
+e[1]=e[1]..'/'
+end
+end
+return e,t:len()
+end
+local function f(h,s,w,u)
+local l=u==nil or u==true
+a.setCursorBlink(true)
+local t=""
+local n=nil
+local e=0
+if h then
+h=string.sub(h,1,1)
+end
+local d=0
+local o={n=0}
+function reset_matches()
+o={n=0}
+end
+function get_matches(e)
+if l then
+return get_fs_matches(e)
+else
+return r(e,w)
+end
+end
+local c,i=a.getSize()
+local r,m=a.getCursorPos()
+local function i(i)
+local o=0
+if r+e>=c then
+o=(r+e)-c
+end
+a.setCursorPos(r,m)
+local i=i or h
+if i then
+a.write(string.rep(i,string.len(t)-o))
+else
+a.write(string.sub(t,o+1))
+end
+a.setCursorPos(r+e-o,m)
+end
+while true do
+local r,a=unpack(y:receive())
+if r=="char"then
+reset_matches()
+t=string.sub(t,1,e)..a..string.sub(t,e+1)
+e=e+1
+i()
+elseif r=="key"then
+if not(a==keys.tab)then
+reset_matches()
+end
+if not(a==keys.rightShift)then
+d=0
+end
+if a==keys.enter then
+break
+elseif a==keys.tab then
+if o[1]then
+local a=string.len(o[o.n])
+o.n=(o.n)%#o+1
+if string.len(o[o.n])<a then i(" ")end
+t=string.sub(t,1,e-a)..o[o.n]..string.sub(t,e+1)
+e=e-a+o[o.n]:len()
+i()
+else
+o,len=get_matches(p(t,e))
+o.n=0
+if#o>0 then
+o.n=1
+local a=len
+t=string.sub(t,1,e-a)..o[o.n]..string.sub(t,e+1)
+e=e-a+o[o.n]:len()
+i()
+end
+if#o==1 then reset_matches()end
+end
+elseif a==keys.rightShift then
+d=(d+1)%2
+if d==0 then
+l=not l
+end
+reset_matches()
+elseif a==keys.left then
+if e>0 then
+e=e-1
+i()
+end
+elseif a==keys.right then
+if e<string.len(t)then
+e=e+1
+i()
+end
+elseif a==keys.up or a==keys.down then
+if s then
+i(" ");
+if a==keys.up then
+if n==nil then
+if#s>0 then
+n=#s
+end
+elseif n>1 then
+n=n-1
+end
+else
+if n==#s then
+n=nil
+elseif n~=nil then
+n=n+1
+end
+end
+if n then
+t=s[n]
+e=string.len(t)
+else
+t=""
+e=0
+end
+i()
+end
+elseif a==keys.backspace then
+if e>0 then
+i(" ");
+t=string.sub(t,1,e-1)..string.sub(t,e+1)
+e=e-1
+i()
+end
+elseif a==keys.home then
+e=0
+i()
+elseif a==keys.delete then
+if e<string.len(t)then
+i(" ");
+t=string.sub(t,1,e)..string.sub(t,e+2)
+i()
+end
+elseif a==keys["end"]then
+e=string.len(t)
+i()
+elseif a==29 then
+write'\n'
+return t..f(h,s,w,u)
+end
+end
+end
+a.setCursorBlink(false)
+a.setCursorPos(c+1,m)
+print()
+return t
+end
+local function i()
+local i={
+normal='>>>',
+complete='..',
+}
+input={}
+output={}
+local a={
+['#']=function(e)
+end,
+['=']=function(o)
+local n='in['..#input..']'
+local function i(t,a)
+local e,o=loadstring(t,a)
+if e then return e end
+local t,a=loadstring("return "..t,a)
+if t then return t,nil,true end
+return nil,(e and o or a)
+end
+func,e,o=i(o,n)
+if func then
+setfenv(func,h.env)
+local e={pcall(function()return func()end)}
+if e[1]then
+table.remove(e,1)
+local t=table.remove(e)
+print(table.concat(util.map_args(e,tostring),',')..tostring(t))
+else
+printError(tResults[2])
+end
+else
+printError(e)
+end
+end
+}
+local t='='
+h.prompt=i.normal
+repeat
+write(t)
+local e=f(nil,input,h.env,t=='#'and true)
+table.insert(input,e)
+if e:sub(1,1)=='$'then
+t=e:sub(2,2)
+e=e:sub(3)
+end
+a[t](e)
+until false
+end
+debug.wrap(
+i()
+)
+end
+return h
+]===================],"CoolisOS/bin/kernel/gui/Term.lua",[===================[include'kernel.class'
+local e=require'kernel.class.Opt'
+local o=require'kernel.checker'
+local a=o.check
+local s=require'Point'
+local h=require'Rectangle'
+class.Term()
+local i=e{
+size=e(s(5,5)),
+bcolor=colors.black,
+tcolor=colors.white,
+pos=e(s(1,1)),
+color=term.isColor(),
+blink=false,
+}
+local function e(e)e:emit(UPDATE)end
+o.custom.color=function(e)return(type(e)=='number'and e>=0 or error('Invalid color, must be number >0',3))end
+local e=util.shcopy(term.native)
+o.custom.native_terminal=function(a)
+for t,o in pairs(e)do
+if type(a[t])~=type(e[t])then return false end
+end
+if typeof(a)~='table'then return false end
+return true
+end
+function Term.from_native(e)
+a('native_terminal',e)
+return Term{
+size=s(e.getSize()),
+color=e.isColor(),
+blink=true,
+}
+end
+function Term:wrap()
+if self.wrapped==nil then
+local t={}
+for e,a in pairs(e)do
+local a=self[e]
+t[e]=function(...)
+return a(self,...)
+end
+end
+self.wrapped=t
+end
+return self.wrapped
+end
+local e={
+'setBackgoundColour',
+'setTextColour',
+'setCursorPos',
+'setCursorBlink',
+'write',
+'setSize',
+'scroll',
+'clear',
+'setPixel',
+}
+function Term:setSignals(a)
+for t,e in ipairs(e)do
+local t=self['_'..e]or self[e]
+self[e]=a and function(...)
+if not self._calm then sched.signal(self,e,...)self._calm=true end
+return t(...)
+end or t
+end
+end
+function Term:__init(e)
+i:drop(self,e)
+self:_allocate()
+end
+function Term:setCursorPos(e,t)self.pos:assign(e,t)end
+function Term:getCursorPos()return self.pos.x,self.pos.y end
+function Term:setBackgroundColor(e)a('color',e)self.bcolor=e end
+Term.setBackgroundColour=Term.setBackgroundColor
+function Term:getBackgroundColor()return self.bcolor end
+Term.getBackgroundColour=Term.getBackgroundColor
+function Term:setTextColor(e)a('color',e)self.tcolor=e end
+Term.setTextColour=Term.setTextColor
+function Term:getTextColor()return self.tcolor end
+Term.getTextColour=Term.getTextColor
+function Term:isColor()return self.color end
+Term.isColour=Term.isColor
+function Term:setCursorBlink(e)a('boolean',e)self.blink=e end
+function Term:getCursorBlink()return self.blink end
+function Term:write(t)
+a('string',t)
+local a=#t
+local e=self.pos
+if e.x+a<=1 or e.x>self.size.x then
+e.x=e.x+a
+return
+end
+if e.x<1 then
+t=t:sub(math.abs(e.x)+2)
+e.x=1
+end
+local o=self.matrix[e.y]
+if o then
+for a=e.x,math.min(e.x-1+a,self.size.x)do
+o[a]={tc=self.tcolor,bc=self.bcolor,c=t:sub(a-e.x+1,a-e.x+1)}
+end
+end
+e.x=e.x+a
+end
+function Term:setSize(e,t)
+e.size=t
+e:_allocate()
+end
+function Term:getSize()
+return self.size.x,self.size.y
+end
+function Term:scroll(e)
+a('number',e)
+e=(e-e%1)
+local o,a=e>0 and 1 or nil,e>0 and self.size.y or 1
+local t=self.matrix
+for e=1,math.abs(e)do
+table.remove(t,o)
+t[a]=self:_newLine()
+end
+end
+function Term:clear()self:_allocate()end
+function Term:clearLine()
+if self.matrix[self.pos.y]then
+self.matrix[self.pos.y]=self:_newLine()
+end
+end
+function Term:_newLine()
+local e={}
+for t=1,self.size.x do
+e[t]={tc=self.tcolor,bc=self.bcolor,c=' '}
+end
+return e
+end
+function Term:_allocate()
+local t,e=self.size.x,self.size.y
+self.matrix=self.matrix or{}
+for e=1,e do
+self.matrix[e]=self:_newLine()
+end
+end
+local o=s(1,1)
+function Term:blit_native(e,n,a)
+n=n or o
+a=a or h(n,self.size)
+e.setCursorBlink(false)
+if self.blink then
+local e=self.matrix[self.pos.y]and self.matrix[self.pos.y][self.pos.x]
+if e then
+self._bcell=e
+e.bc,e.tc=e.tc,e.bc
+else
+self._bcell=nil
+end
+end
+for h=a.s.y,a.e.y do
+local s=self.matrix[h]
+local i,o=s[1].tc,s[1].bc
+local t={}
+for a=a.s.x,a.e.x do
+local d,r=s[a].tc,s[a].bc
+if i~=d or o~=r then
+e.setCursorPos(a-#t+n.x-1,h+n.y-1)
+e.setTextColor(i==0 and self.tcolor or i)
+e.setBackgroundColor(o==0 and self.bcolor or o)
+e.write(table.concat(t))
+i,o=d,r
+t={}
+end
+table.insert(t,s[a].c)
+end
+if t[1]then
+e.setCursorPos(a.e.x-#t+1,h)
+e.setTextColor(i==0 and self.tcolor or i)
+e.setBackgroundColor(o==0 and self.bcolor or o)
+e.write(table.concat(t))
+end
+end
+if self._bcell then
+local e=self._bcell
+e.bc,e.tc=e.tc,e.bc
+self._bcell=nil
+end
+end
+function Term:setPixel(n,i,o,e,t)
+a('string,?|color,?|color,?|Point|number|table,?|number')
+if type(e)=='table'then
+e,t=e.x,e.y
+a('number,number',e,t)
+else
+e,t=e or self.pos.x,t or self.pos.y
+end
+if self.matrix[t]and self.matrix[t][e]then
+self.matrix[t][e]={c=n or' ',tc=i or self.tcolor,bc=o or self.bcolor}
+end
+end
+function Term:copyState(e)
+e=classof(e)==Term and e:wrap()or e
+e.setTextColor(self:getTextColor())
+e.setBackgroundColor(self:getBackgroundColor())
+e.setCursorPos(self:getCursorPos())
+end
+function Term:_dump_key(t)
+local o={}
+for a=1,self.size.y do
+local e={}
+table.foreach(self.matrix[a],function(o,a)table.insert(e,tostring(type(a[t])=='number'and string.char(97+math.ceil(math.log(a[t],2)))or a[t]))end)
+e=table.concat(e)
+table.insert(o,e)
+end
+return table.concat(o,'\n')
+end
+function Term:dump()
+return self:_dump_key'c',self:_dump_key'tc',self:_dump_key'bc'
+end
+function Term:blit_all(e)
+for a=1,self.size.y do
+local t=self.matrix[a]
+for o=1,self.size.x do
+local t=t[o]
+e.setCursorPos(o,a)
+e.setTextColor(t.tc)
+e.setBackgroundColor(t.bc)
+e.write(t.c)
+end
+end
+end
+Term.test=function()
+rawset(_G,'t',Term{size=s(term.getSize())})
+for e=1,t.size.y do
+t:setPixel('a',2^e,2^e,e,e)
+end
+sleep(1)
+term.clear()
+t:blit_native(term)
+sleep(1)
+end
+return Term]===================],"CoolisOS/bin/kernel/loadreq",true,"CoolisOS/bin/kernel/loadreq/init.lua",[===================[local a=fs
+local t=string
+local h=loadfile
+local n=error
+local function s(...)
+return(_G.log and _G.log(...))
+end
+function getNameExpansion(e)
+local o,o,a,t=t.find(e,'([^%./\\]*)%.(.*)$')
+return a or e,t
+end
+function getDir(e)
+return t.match(e,'^(.*)/')or'/'
+end
+vars={}
+local function o(e,o)
+e=t.gsub(e,'%?',o)
+if a.exists(e)and not a.isDir(e)then
+return e
+end
+end
+vars.finders={o}
+vars.paths='?/init.lua;?.lua'
+vars.lua_requirer={
+required={},
+required_envs={},
+requiring={},
+}
+function lua_requirer(e,a,t)
+local a,n,s,r=t.env,t.renv,t.rerun,t.args
+local i='lua_requirer:'
+local t=vars.lua_requirer
+local d,o=getNameExpansion(e)
+if not(o==''or o=='lua'or o==nil)then
+return nil,i..'wrong extension:'..o
+end
+if t.requiring[e]then
+return nil,i..'file is being loaded'
+end
+if not s and t.required[e]then
+return t.required[e]
+end
+local o,s=h(e,e)
+if not o then
+return nil,i..'loadfile:'..s
+end
+a=a or{}
+a._FILE_PATH=e
+t.required_envs[e]=a
+setfenv(o,a)
+n=n or _G
+setmetatable(a,{__index=n})
+t.requiring[e]=true
+local n,o=pcall(o,r)
+t.requiring[e]=nil
+if not n then
+return nil,i..'while calling module:\n'..o
+elseif o then
+t.required[e]=o
+return o
+else
+local o={}
+for e,a in pairs(a)do
+o[e]=a
+end
+t.required[e]=o
+return o
+end
+end
+vars.requirers={lua=lua_requirer}
+function sufix(e)
+return t.gsub('@/?;@/?.lua;@/?/init.lua;@/?/?.lua;@/?/?;@','@',e)
+end
+local function h(a,o,e)
+local n={'_find: finding '..tostring(a)}
+if o then
+elseif e.REQUIRE_PATH then
+o=e.REQUIRE_PATH
+elseif e.PACKAGE_NAME and e._FILE_PATH then
+o=sufix(t.match(e._FILE_PATH,'^(.-'..e.PACKAGE_NAME..')'))..';'..vars.paths
+elseif e._FILE_PATH then
+o=sufix(getDir(e._FILE_PATH))..';'..vars.paths
+else
+o=vars.paths
+end
+a=t.gsub(a,'([^%.])%.([^%.])','%1/%2')
+a=t.gsub(a,'^%.([^%.])','/%1')
+a=t.gsub(a,'%.%.','.')
+local h=vars.finders
+local r,i
+for e=1,#h do
+r=h[e]
+for e in t.gmatch(o,';?([^;]+);?')do
+i=r(e,a)
+if i then return i end
+end
+end
+table.insert(n,'_find:file not found:'..a..'\ncaller path='..(e._FILE_PATH or'not available'))
+local e=table.concat(n,'\n')
+s('loadreq','ERROR','_find:%s',e)
+return nil,e
+end
+find=h
+local function o(t,a,o)
+local e={}
+table.insert(e,'loadreq:require: while requiring '..tostring(t))
+local t,i=h(t,a.path,o)
+if t==nil then
+table.insert(e,i)
+return nil,table.concat(e,'\n')
+end
+for n,i in pairs(vars.requirers)do
+local a,o=i(t,o,a)
+if a then
+return a,t
+else
+table.insert(e,o)
+end
+end
+return nil,table.concat(e,'\n')
+end
+function require(t,e)
+e=e or{}
+local t,e=o(t,e,getfenv(2))
+if t==nil then
+s('loadreq','ERROR','require:%s',e)
+n(e,1)
+else
+s('loadreq','INFO','require: success in requiring [%s]',e)
+return t
+end
+end
+function include(t,e)
+e=e or{}
+local a=getfenv(2)
+local e,t=o(t,e,a)
+if e then
+for e,t in pairs(e)do
+if type(e)=='string'and e:sub(1,1)~='_'then
+a[e]=t
+end
+end
+return true
+else
+s('loadreq','ERROR','include:%s',t)
+n(t,1)
+end
+end
+function reload(t,e)
+e=e or{}
+e.rerun=true
+return require(t,e)
+end
+vars.bProtected=true
+local function t(e,a,t)
+if vars.bProtected then
+n("Attempt to write to protected")
+else
+rawset(e,a,t)
+end
+end
+function protect(a)
+local e=getmetatable(a)
+if e=="Protected"then
+return
+end
+if e then
+e.__newindex=t
+else
+setmetatable(a,{__newindex=t})
+end
+end
+function unprotect(e)
+local e=getmetatable(e)
+if not e then
+return
+end
+vars.bProtected=false
+e.__newindex=nil
+vars.bProtected=true
+end
+function permaProtect(e)
+local t=getmetatable(e)
+if t=="Protected"then
+return
+end
+setmetatable(e,{
+__newindex=function(e,t,a)
+if vars.bProtected then
+n("Attempt to write to protected")
+else
+rawset(e,t,a)
+end
+end,
+__metatable='Protected',
+})
+end
+env=getfenv()
+return env
+]===================],"CoolisOS/bin/kernel/log",true,"CoolisOS/bin/kernel/log/init.lua",[===================[local t,p,v,o,s,e,c,f,a,a,u,y=
+string,pcall,table,tostring,setmetatable,os,pairs,next,print,math,type,unpack
+local l=_G
+local d=require'kernel.util'
+local b=require'kernel.checker'.check
+local n=textutils
+local a=t
+local t=pprint
+local i=getfenv()
+s(i,nil)
+function s_to_real(e)
+local t=e%60
+local e=((e-t)/60)
+local a=e%60
+local e=((e-a)/60)
+return e,a,t
+end
+local w=function()
+local t='Day '..e.day()..', '..n.formatTime(e.time())
+local e=e.clock()
+local s,n,e=s_to_real(e)
+local o=o(e)
+local e,i,t=o:match('^([^%.]*)(%.)([^%.]*)$')
+e=e or'0'
+i=i or'.'
+t=t or'0'
+e=a.rep('0',2-e:len())..e
+t=t..a.rep('0',2-t:len())
+o=e..i..t
+local e=a.format('%sh%sm%ss',s,n,o)
+return a.format('%s',o)
+end
+levels={}
+for t,e in c{'NONE','ERROR','WARNING','INFO','DETAIL','DEBUG','ALL'}do
+levels[t],levels[e]=e,t
+end
+local h=defaultlevel or levels.WARNING
+local r=modules or{}
+timestampformat=nil
+displaylogger=function(e,e,...)
+end
+storelogger=nil
+format=nil
+local function n(...)
+if displaylogger then displaylogger(...)end
+if storelogger then storelogger(...)end
+end
+function musttrace(t,e)
+local t,e=r[t]or h,levels[e]
+return not e or t>=e
+end
+local function m(...)
+return(l.debug and l.debug.getinfo or o)(...)
+end
+function trace(e,t,i,...)
+b('string,string,string',e,t,i)
+if not musttrace(e,t)then return end
+local h,s=p(a.format,i,y(d.map_args({...},function(e)if(u(e)=='number'or u(e)=='string')then return e else return m(e)end end)))
+if h then
+local i
+local function h(a)
+if a=="l"then return s
+elseif a=="t"then i=i or o(w(timestampformat))return i
+elseif a=="m"then return e
+elseif a=="s"then return t
+else return a end
+end
+local a=(format or"%t %m-%s: %l"):gsub("%%(%a)",h)
+n(e,t,a)
+else
+n(e,t,"Error in the log formating! ("..o(s)..") - Fallback to raw printing:")
+n(e,t,a.format("\tmodule=(%s), severity=(%s), format=(%q), args=(%s)",e,t,i,v.concat(d.map_args({...},debug.getinfo),',')))
+end
+end
+function setLevel(e,...)
+local t={...}
+local a=levels[e]or levels['ALL']
+if not levels[e]then
+trace("LOG","ERROR","Unknown severity %q, reverting to 'ALL'",o(e))
+end
+if f(t)then for t,e in c(t)do r[e]=a end
+else h=a end
+end
+local e=s({},{__mode='k'})
+function wrap_class(t)
+assert(not e[t])
+local a=t.__init
+rawset(t,'__init',function(...)
+a(...)
+i(o(t.__name),'DETAIL','initiated obj %s with args ',debug.getinfo(obj),args_tostring(...))
+end)
+e[t]=a
+end
+function unwrapp_class(t)
+if e[t]then
+rawset(t,'__init',e[t])
+e[t]=nil
+end
+end
+s(i,{__call=function(e,...)return trace(...)end})
+return i
+]===================],"CoolisOS/bin/kernel/log/store.lua",[===================[local e={}
+local t=fs.combine(_INSTALL_PATH,'ect/log')
+if not fs.exists(t)then
+fs.makeDir(t)
+end
+local a={}
+local function o(e)
+local t=fs.open(e,'a')
+for a,e in pairs(a[e])do
+t.writeLine(e)
+end
+t.close()
+a[e]=nil
+end
+function e.flush(i)
+if not i then
+for e,t in pairs(util.shcopy(a))do
+o(e)
+end
+else
+local e=fs.combine(t,i..'.log')
+o(e)
+end
+end
+e.instant=false
+function e.append(n,i)
+local t=fs.combine(t,n..'.log')
+a[t]=a[t]or{}
+table.insert(a[t],i)
+if e.instant==true then
+o(t)
+end
+end
+function e.reset(e)
+if e then
+fs.open(fs.combine(t,e..'.log'),'w').close()
+else
+fs.delete(t)
+fs.makeDir(t)
+end
+end
+log.storelogger=function(a,o,t)
+e.append(a,t)
+e.append('log',t)
+end
+return e]===================],"CoolisOS/bin/kernel/sched",true,"CoolisOS/bin/kernel/sched/barrier.lua",[===================[local o=require'kernel.checker'.check
+PACKAGE_NAME='sched'
+local t=require'init'
+local a={__type='barrier'};a.__index=a
+t.barriers=setmetatable({},{__mode='kv'})
+function barrier(e)
+o('integer',e)
+local e={n=e}
+if t.barriers then
+t.barriers[tostring(e):match(':.(.*)')]=e
+end
+setmetatable(e,a)
+return e
+end
+a.reach=function(e)
+if e.n<=1 then
+e.n=0
+t.signal(e,'zero')
+else
+e.n=e.n-1
+t.wait(e,'zero')
+end
+end
+return barrier]===================],"CoolisOS/bin/kernel/sched/catalog.lua",[===================[include'kernel.class'
+local i=require'kernel.log'
+local n=require'kernel.checker'.check
+local o=require'kernel.sched'
+local t=setmetatable({},{__mode='kv'})
+class.Catalog()
+local a=Catalog
+a.named=t
+function a:__init()
+self.objs=setmetatable({},{__mode='kv'})
+end
+function a:register(e,a)
+if type(e)~='table'then error('not a table',2)end
+if self.objs[a]~=e then error('name taken',2)end
+self.objs[e]=a
+self.objs[a]=e
+o.signal(self,'+'..a,e)
+t[e]=t[e]or setmetatable({},{__mode='kv'})
+t[e][self]=true
+end
+function a:unregister(e)
+local a=self.objs[e]
+local i=type(a)=='string'and a or e
+self.objs[a]=nil
+self.objs[e]=nil
+if t[obj]then
+t[obj][self]=nil
+end
+o.signal(self,'-'..i,obj)
+end
+function a:waitFor(e,a)
+n('string',e)
+i('catalog','INFO','catalog %s queried for name "%s" by %s',self,e,o.me())
+local t
+if self[e]then return self[e]else
+local a,o,e=o.wait(self,'+'..e,a)
+if a==self then t=e end
+end
+i('catalog','INFO','catalog %s queried for name "%s" by %s, found %s',self,e,o.me(),t)
+return t
+end
+return a]===================],"CoolisOS/bin/kernel/sched/init.lua",[===================[include'kernel.class'
+local a=require'kernel.log'
+local m=require'kernel.checker'.check
+local c=require'utils.linked'
+local u=table
+local o=pairs
+local e,s,h,t,n,l
+local r
+local i
+local d=function(t,n,...)
+a('sched','DEBUG',"SIGNAL [%s].[%s]",t,n)
+local function a(t,a,i,...)
+local e={}
+for a,t in o(t)do
+e[a]=t
+end
+for e,t in o(e)do
+e:handle(a,i,...)
+end
+end
+local function o(i,o,t,...)
+local e=i[t]
+if e then
+a(e,o,t,...)
+end
+e=i['*']
+if e then
+a(e,o,t,...)
+end
+end
+local e=i[t]
+if e then
+o(e,t,n,...)
+end
+local e=i['*']
+if e then
+o(e,t,n,...)
+end
+return true
+end
+s=class('Obj')
+do
+local t=s
+function t:__init()
+self.fil={}
+self.subs={}
+if e.running then self:setParent(e.running)end
+end
+local function h(...)
+local t={...}
+local e=#t
+local a,o
+if type(t[e])=='number'then
+o=t[e]
+e=e-1
+end
+if e~=0 then
+if e==1 and type(t[1])=='table'then
+a=t[1]
+else
+a={[t[1]]={e==1 and'*'or unpack(t,2,e)}}
+end
+end
+return a,o
+end
+local s=function(e,t)
+e=e or{}
+if t then
+if not e[n]then
+e[n]={t}
+else
+u.insert(e[n],t)
+end
+end
+return e
+end
+function get_t(...)
+local e,t=h(...)
+if t then e=s(e,t+r())end
+return e
+end
+function t:link(...)
+local e=get_t(...)
+if e==nil then return end
+local s=self.fil
+local h=self.__root
+local t,n,a
+for e,o in o(e)do
+t=i[e]
+n=s[e]
+if not n then
+s[e]={}
+n=s[e]
+if not t then i[e]={}t=i[e]end
+end
+local e
+for i=1,#o do
+e=o[i]
+n[e]=true
+a=t[e]
+if not a then t[e]={}a=t[e]end
+a[h]=true
+end
+end
+end
+function t:unlink(...)
+local r=self.__root
+local e=get_t(...)
+if e==nil then return end
+local s=self.fil
+local a,t,n
+for o,h in o(e)do
+t=s[o]
+if t then
+a=i[o]
+local e
+for o=1,#h do
+e=h[o]
+if t[e]then
+t[e]=nil
+n=a[e]
+n[r]=nil
+if not next(n)then a[e]=nil end
+end
+end
+if not next(t)then s[o]=nil end
+if not next(a)then i[o]=nil end
+end
+end
+end
+function t:reset()
+local e
+local n=self.__root
+for a,t in o(self.fil)do
+e=i[a]
+if e then
+for t in o(t)do
+if e[t]then
+e[t][n]=nil
+if not next(e[t])then e[t]=nil end
+end
+end
+if not next(e)then i[a]=nil end
+end
+end
+self.fil={}
+end
+local i={n=0}
+function t:silent_destroy()
+local t=self.__root
+if i[t]then
+error('Detected recursion in Obj.finalize: ending stack='..pstring(i),2)
+else
+i.n=i.n+1
+i[t]=i.n
+end
+while next(self.subs)do
+next(self.subs):destroy()
+end
+if self.parent then
+self.parent.Obj.subs[t]=nil
+end
+self:reset()
+e.queue:remove(t)
+i[t]=nil
+i.n=i.n-1
+end
+function t:destroy(...)
+if not self.destroyed then
+local e=self.__root
+d(e,'dying',...)
+self:silent_destroy()
+d(e,'dead',...)
+self.destroyed=true
+end
+end
+local function s(a,t,e)
+if t==nil then return true,e end
+t=t.__root
+local a=a.__root
+e=e or{a,[a]=true}
+if e[t]then return false,e end
+u.insert(e,t)
+e[t]=true
+return s(t,t.Obj.parent,e)
+end
+function t:setParent(t)
+local i,n=t.__root,t.Obj
+local o=self.__root
+local s,h=s(self,self.parent)
+if not s then error('Cycle detected in scheduler hierarchy;debug:'..pstring(h),2)end
+if i==o then error("A scheduler object cannot be it's own parent",2)end
+if self.parent then self.parent.Obj.subs[o]=nil end
+self.parent=i
+n.subs[o]=true
+a('sched','DETAIL','(%s) parent set to (%s) by (%s)',self.__root,(t and t.__root),e.running or'nil')
+end
+local a={}
+function t:setTimeout(e)
+if type(e)~='number'then
+error('timeout must be number',2)
+else
+e=n.norm(e)
+end
+self:cancelTimeout()
+self[a]={
+timeout=e,
+td={timer={e+r()}},
+}
+self:link(self[a].td)
+return self
+end
+function t:resetTimeout()
+local e=self[a]
+if e then
+self:unlink(e.td)
+e.td[n][1]=r()+e.timeout
+self:link(self.td.td)
+end
+end
+function t:cancelTimeout()
+local e=self[a]
+if e then
+self:unlink(e.td)
+self.td=nil
+end
+end
+function t:__debug()
+local e={}
+for t,a in o(self.fil)do
+local t=debug.getinfo(t)
+e[t]={}
+for a in o(a)do
+u.insert(e[t],debug.getinfo(a))
+end
+end
+return string.format('%s;   \nWait descriptor:%s',debug.objinfo(self),pstring(e))
+end
+end
+h=class('Sync')
+do
+local o=h
+local n=function(t,...)
+local o=t.Sync
+local a=e.running
+e.running=t
+o.f(...)
+t:destroy()
+e.running=a
+end
+local i=function(t,...)
+local o=e.running
+e.running=t
+local a=t.Sync
+a.f(...)
+t:resetTimeout()
+e.running=o
+end
+function o:__init(o,t)
+m('function',o)
+t=t or'on'
+s:__init(self)
+if t=='once'then
+elseif t=='on'then
+else error('mode?',2)end
+self.mode=t
+a('sched','INFO','(%s) created with mode %s by (%s)',self,t,e.running or'nil')
+end
+function o:handle(...)
+if self.mode=='on'then
+n(...)
+else
+i(...)
+end
+end
+end
+t=class('Task',s)
+do
+local o=t
+function o:__init(t,...)
+m('function',t)
+s:__init(self)
+self.co=coroutine.create(t)
+self.args={...}
+a('sched','INFO','created (%s) from function (%s) by (%s)',self,t,e.running or'nil')
+end
+function o:handle(...)
+self.args={...}
+e.queue:push(self)
+e.ready=true
+a('sched','DETAIL','Task:handle rescheduling (%s) to receive SIGNAL [%s].[%s]',
+self,...)
+return self
+end
+function o:run(...)
+self.args={...}
+e.queue:push(self)
+a('sched','INFO',"Task.run scheduling (%s)",self)
+return self
+end
+function o:destroy()
+if self.status~='dead'then
+a('sched','INFO',"Task.destroy destroying (%s) from (%s)",self,e.running or'nil')
+self.Obj:destroy()
+self.status='dead'
+if t.running and t.running.status=='dead'and t.running.co==coroutine.running()then
+coroutine.yield()
+end
+end
+return self
+end
+function o:resume()
+e.running=self
+local n=self.co
+t.running=self
+a('sched','DETAIL',"Resuming (%s)",self)
+local o,i=coroutine.resume(n,unpack(self.args))
+a('sched','DETAIL',"Exited (%s)",self)
+t.running=nil
+self.args={}
+e.running=nil
+if not o then
+a('sched','ERROR',"In (%s):%s",self,i)
+d(self,"error",o,i)
+self:destroy(o,i)
+elseif coroutine.status(n)=="dead"then
+a('sched','INFO',"(%s) is dead",self)
+self:destroy(o,i)
+end
+end
+function o:wait(...)
+local t=self
+if t.co~=coroutine.running()then error('calling Task.wait outside a task/inside a task but inside another coroutine',2)end
+if(...)==nil then
+e.queue:push(t)
+a('sched','DETAIL',"Task.wait rescheduling (%s) for resuming ASAP",t)
+elseif...then
+t:link(...)
+a('sched','DETAIL',"(%s) waiting",t)
+else
+a('sched','DETAIL',"(%s) waiting for pre-set signals",t)
+end
+coroutine.yield()
+if...then
+t:reset()
+end
+return unpack(t.args)
+end
+function t._reset()
+t.running=nil
+end
+t.sigrun=function(a,...)
+local e=function()
+while true do
+a(e.wait(false))
+end
+end
+local e=t(e)
+e:link(...)
+return e
+end
+t.sigrunonce=function(a,...)
+local e=function()
+a(e.wait(false))
+end
+local e=t(e)
+e:link(...)
+return e
+end
+end
+do
+e={
+signal=d,
+emit=function(...)
+e.signal(e.me(),...)
+end,
+Obj=s,
+ready=false,
+me=function()return e.running end,
+Task=t,
+Sync=h,
+sigonce=function(e)return h(e,'once')end,
+sighook=function(e)return h(e,'on')end,
+wait=function(...)return e.running:wait(...)end,
+sigrun=t.sigrun,
+sigrunonce=t.sigrunonce,
+}
+local s=function(a,t)
+t=t or{}
+t.env={sched=e}
+return require(a,t)
+end
+l=s'platform'
+r=l.time
+n=s'timer'
+s'pipe'
+local s='stopped'
+function e.step()
+local t=e.queue
+e.queue=c()
+while true do
+local e=t:remove()
+if e==nil then break end
+e:resume()
+end
+if not e.queue:isempty()then e.ready=true end
+end
+function e.stop()
+a('sched','INFO','(%s) toggling loop_state=%s to stopping',t.running or'scheduler',s)
+if s=='running'then s='stopping'end
+end
+function e.reset()
+i={}
+e.fil=i
+e.running=nil
+e.queue=c()
+t._reset()
+n._reset()
+l._reset()
+s='stopped'
+a('sched','INFO','scheduler cleaned.')
+end
+function e.loop()
+a('sched','INFO','Scheduler started')
+s='running'
+local t
+while true do
+n.step()
+e.step()
+t=nil
+local a=n.nextevent()
+if a then
+local e=r()
+t=a<e and 0 or a-e
+end
+if s~='running'then e.reset()break end
+l.step(t)
+e.ready=false
+end
+end
+function e.debug()
+local t={}
+local a={}
+for n,e in o(i)do
+local t={}
+for i,n in o(e)do
+local e={}
+for a in o(n)do
+u.insert(e,debug.getinfo(a))
+end
+t[debug.getinfo(i)]=e
+end
+a[debug.getinfo(n)]=t
+end
+t.fil=a
+return pstring(t)
+end
+local t={}
+for e,a in o(e)do
+if type(e)=='string'then t[e:lower()]=a end
+end
+for t,a in o(t)do e[t]=a end
+e.reset()
+end
+return e]===================],"CoolisOS/bin/kernel/sched/lock.lua",[===================[--------------------------------------------------------------------------------
+-- Thread-bound lock objects
+-- =========================
+--
+-- A lock allows to define atomic units of code execution: 
+-- a portion of code that is protected by a lock will never be executed by more
+-- than one thread at a time.
+-- Because of the use of coroutines for the threading in Lua, the use of locks 
+-- is only relevant when you want to protect a portion of code that contains
+-- blocking APIs (i.e. network access, scheduling, etc...)
+--
+-- A lock must be acquired and released by the same thread: an error will be 
+-- triggered if a thread tries to release a lock acquired by another thread.
+-- This behavior is enforced because it is almost always a concurrency mistake
+-- to have a thread releasing another thread's locks; but you can circumvent
+-- this by passing the owning thread as an extra parameter.
+--
+-- A lock is automatically released when its owning thread dies, if it failed
+-- to do so explicitly.
+--
+-- API
+-- ---
+--
+-- lock.new()
+--      return a new instance of a lock.
+--
+-- LOCK :acquire ()
+--      acquire the lock.
+--
+-- LOCK :release ([thread])
+--      release the lock. The optional thread param is defaulted to the 
+--      current thread. A lock must be released by the thread that
+--      acquired it (or use the thread params to release another thread's lock).
+--
+-- LOCK :destroy()
+--      destroy the lock. Any waiting thread on that lock will trigger a
+--      "destroyed" error
+--
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- Associative lock objects
+-- ------------------------
+--
+-- Function lock (object) allows to associate a lock to an arbitrary object.
+-- This API creates a standard lock (as above). It removes the burden of
+-- creating the lock and managing the association between the object
+-- and the lock.
+--
+-- Locks associated to objects still have an owning thread, and the rule
+-- "locks must be released by the thread which owns them" still applies.
+--
+-- API
+--
+-- lock.lock (object)
+--      lock the object.
+--
+-- lock.unlock(object, thread)
+--      unlock the object. thread is optional as in lock:acquire() function.
+--
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- Synchronized functions
+-- ----------------------
+--
+-- A common pattern is to have a function that must not be called more than once
+-- at a given time: if the function is already running in another thread, one
+-- must wait for this call to finish before calling it again.
+--
+-- API
+--
+-- lock.synchronized (f)
+--      return a synchronized wrapper around f. A typical idiom is:
+--
+--      mysynchronizedfunction = lock.synchronized (function (...)
+--          [code]
+--      end)
+--------------------------------------------------------------------------------
+include'kernel.class'
+local check = require 'kernel.checker'.check
+
+local sched = require 'init'
+
+local setmetatable = setmetatable
+local tostring = tostring
+local string = string
+local error = error
+local assert = assert
+local table = table
+local next = next
+local pairs = pairs
+local type = type
+local unpack = unpack
+
+env=getfenv()
+setmetatable(env,nil)
+
+--------------------------------------------------------------------------------
+-- 
+--------------------------------------------------------------------------------
+class.LOCK()
+LOCK.hooks={}
+LOCK.objlocks=setmetatable({}, {__mode = "k"})
+--------------------------------------------------------------------------------
+-- Create a new lock object. It remains unlocked.
+--------------------------------------------------------------------------------
+setmetatable(env,{__call=function() return LOCK(...) end})
+function LOCK:__init()
+    self.waiting={}
+end
+--------------------------------------------------------------------------------
+-- Destroy a lock object.
+--------------------------------------------------------------------------------
+function LOCK:destroy()
+    self.owner = "destroyed" -- means that the lock is being destroyed !
+    for t, _ in pairs(self.waiting) do
+        sched.signal(self, t)
+        self.waiting[t] = nil
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Helper to release locks on dead threads.
+--------------------------------------------------------------------------------
+local function autorelease(thread)
+    for l, _ in pairs(LOCK.hooks[thread]) do
+        if l.owner == thread then l:release(thread)
+        elseif l.waiting then l.waiting[thread] = nil end
+    end
+    LOCK.hooks[thread] = nil
+end
+
+--------------------------------------------------------------------------------
+-- Helper to release locks on dead threads.
+--------------------------------------------------------------------------------
+local function protectdie(self, thread)
+    if not LOCK.hooks[thread] then
+        local h = sched.sigonce(function() 
+            autorelease(thread)
+        end,thread, "dead")
+        LOCK.hooks[thread] = {sighook = h}
+    end
+    (LOCK.hooks[thread])[self] = true
+end
+
+--------------------------------------------------------------------------------
+-- Helper to release locks on dead threads.
+--------------------------------------------------------------------------------
+local function unprotectdie(self, thread)
+    (LOCK.hooks[thread])[self] = nil
+    if not next(LOCK.hooks[thread], next(LOCK.hooks[thread])) then -- if this was the last lock attached to that thread...
+        (LOCK.hooks[thread].sighook):destroy()
+        LOCK.hooks[thread] = nil
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Attempt to take ownership of a lock; might block until the current owner
+-- releases it.
+--------------------------------------------------------------------------------
+function LOCK:acquire()
+    local t = sched.task.running
+    assert(self.owner ~= t, "a lock cannot be acquired twice by the same thread")
+    assert(self.owner ~= "destroyed", "cannot acquire a destroyed lock")
+    protectdie(self, t) -- ensure that the lock will be unlocked if the thread dies before unlocking...
+
+    while self.owner do
+        self.waiting[t] = true
+        sched.wait(self,t) -- wait on the current lock with the current thread
+        if self.owner == "destroyed" then error("lock destroyed while waiting") end
+    end
+    self.waiting[t] = nil
+    self.owner = t
+end
+
+--------------------------------------------------------------------------------
+-- Release ownership of a lock. 
+--------------------------------------------------------------------------------
+function LOCK:release(thread)
+    thread = thread or sched.task.running
+    assert(self.owner ~= "destroyed", "cannot release a destroyed lock")
+    assert(self.owner == thread, "unlock must be done by the thread that locked")
+    unprotectdie(self, thread)
+    self.owner = nil
+
+    -- wakeup a waiting thread, if any...
+    local t = next(self.waiting)
+    if t then
+        sched.signal(self, t)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Create and acquire a new lock, associated to an arbitrary object.
+--------------------------------------------------------------------------------
+function lock(object)
+    assert(object, "you must provide an object to lock on")
+    assert(type(object) ~= "string" and type(object) ~= "number", "the object to lock on must be a collectable object (no string or number)")
+    if not LOCK.objlocks[object] then LOCK.objlocks[object] = new() end
+    LOCK.objlocks[object]:acquire()
+end
+
+
+--------------------------------------------------------------------------------
+-- Release an object created with lock().
+--------------------------------------------------------------------------------
+function unlock(object, thread)
+    assert(object, "you must provide an object to unlock on")
+    assert(LOCK.objlocks[object], "this object was not locked")
+    LOCK.objlocks[object]:release()
+end
+
+--------------------------------------------------------------------------------
+-- Create a synchronized version of function f, i.e. a function that behaves
+-- as f, except that no more than one instance of it will be running at a 
+-- given time.
+--------------------------------------------------------------------------------
+function synchronized(f)
+    check(f,'function')
+    local function sync_f(...)
+        local k = lock (f)
+        local r = {f(...)}
+        unlock(f)
+        return unpack (r, 1, r.n)
+    end
+    return sync_f
+end
+
+return env
+]===================],"CoolisOS/bin/kernel/sched/pipe.lua",[===================[include'kernel.class'
+local a=require'kernel.checker'.check
+local e=sched
+e.Pipe=class'Pipe'
+do
+local t=e.Pipe
+local o,o,i=table.insert,table.remove,os.clock
+e.pipes=setmetatable({},{__mode='kv'})
+function t:__init(t)
+a('?number',t)
+util.shcopy({
+sndidx=1;
+rcvidx=1;
+content={};
+maxlength=t;
+state='empty';
+wasteabs=32;
+wasteprop=2},
+self)
+if e.pipes then
+e.pipes[debug.getinfo(self)]=self
+end
+end
+local function o(t)
+local a=t.sndidx-t.rcvidx
+local o=t.state
+local a=a==0 and'empty'or t.maxlength==a and'full'or'ready'
+if o~=a then
+t.state=a
+e.signal(t,'state',a)
+end
+end
+local function s(e)
+local i=e.rcvidx
+local o=i-1
+if o<=e.wasteabs then return end
+local n=e.sndidx
+local a=n-i
+if o<=e.wasteprop*a then return end
+local t
+if n<2e3 then t={select(i,unpack(e.content))}else
+local i
+i,t=e.content,{}
+for e=1,a do t[e]=i[e+o]end
+end
+e.content,e.rcvidx,e.sndidx=t,1,a+1
+end
+function t:receive(n)
+a('?number',n)
+local t
+while true do
+if self.rcvidx==self.sndidx then
+log('pipe','DEBUG',"(%s) empty,(%s) :receive() waits for data",self,e.running)
+t=t or n and i()+n
+local t=t and t-i()
+if t and t<=0 or e.wait(self,'state',t)==e.timer then
+return nil,'timeout'
+end
+else
+local t,e=self.content,self.rcvidx
+local a=t[e]
+t[e]=false
+self.rcvidx=e+1
+s(self)
+o(self)
+return a
+end
+end
+end
+function t:send(s,n)
+a('!nil,?number',s,n)
+local t=self.maxlength
+local t
+while self.state=='full'do
+log('pipe','DEBUG',"Pipe %s full, :send() blocks until some data is pulled from pipe",self)
+t=t or n and i()+n
+local t=t and t-i()
+if t and t<=0 or e.wait(self,'state',t)=='timer'then
+log('pipe','DEBUG',"Pipe %s :send() timeout",self)
+return nil,'timeout'
+else
+log('pipe','DEBUG',"Pipe %s state changed, retrying to :send()",self)
+end
+end
+local e=self.sndidx
+self.content[e]=s
+self.sndidx=e+1
+o(self)
+return self
+end
+function t:pushback(t)
+assert(t~=nil,"Don't :pushback(nil) in a pipe")
+if self.state=='full'then
+return nil,'length would exceed maxlength'
+end
+local e=self.rcvidx-1
+if e==0 then
+table.insert(self.content,1,t)
+self.sndidx=self.sndidx+1
+else
+self.content[e]=t
+self.rcvidx=e
+end
+o(self)
+return self
+end
+function t:reset()
+local e=self.content
+self.content={}
+o(self)
+return e
+end
+function t:peek()
+return self.content[self.rcvidx]
+end
+function t:length()
+return self.sndidx-self.rcvidx
+end
+function t:setmaxlength(e)
+a('?number',e)
+if self:length()>e then return nil,'length exceeds new maxlength'end
+if e and e<1 then return nil,'invalid maxlength'end
+self.maxlength=e
+o(self)
+return self
+end
+function t:setwaste(e,t)
+self.wasteabs,self.wasteprop=e,t
+return self
+end
+end
+e.SigPipe=class('SigPipe',e.Pipe,e.Obj)
+do
+local e=e.SigPipe
+function e:handle(...)
+self:send{...}
+end
+end
+e.pump=function(t,i,o)
+a('!nil,function,!nil',t,i,o)
+repeat
+local e=i(t and t:receive())
+if e~=nil and o then o:send(e)end
+until false
+end
+e.to=function(t,a)
+repeat
+local e=t:receive()
+if e~=nil then
+for a,t in ipairs(a)do
+t:send(e)
+end
+end
+until false
+end
+e.from=function(t,a)
+e.running:reset()
+for a,t in ipairs(t)do
+e.running:link(t,'*')
+end
+repeat
+e.wait(false)
+local e=true
+while e do
+e=false
+for o,t in ipairs(t)do
+if t:peek()~=nil then
+a:send(t:receive())
+e=true
+end
+end
+end
+until false
+end
+]===================],"CoolisOS/bin/kernel/sched/platform.lua",[===================[local h=require'kernel.log'
+local t,e,f,e,e,e,s,e,c,e,e,i=sched,pairs,string,term,_G,fs,os,print,unpack,select,pprint,next
+local m=coroutine
+local o,u=tostring,math
+local w,r=debug,util
+local e={}
+local t=t
+local a
+env=getfenv()
+setmetatable(env,nil)
+e.is_running=function()
+return t and t.Task.running and t.Task.running.co==m.running()
+end
+e.time=s.clock
+local n=e.time
+local y=o({})
+local o=t.Task
+local o,l,d=0,1,0
+last_yield,last_return=-u.huge,-u.huge
+e.info=function()
+return f.format('load: %f;last yield: %f;last return:%f',r.format_number(d,2),r.format_number(last_yield,2),r.format_number(last_return,2))
+end
+local r=function(...)
+h('platform','DETAIL','yielding to platform')
+last_yield=n()
+o=last_yield-last_return
+local t={m.yield(...)}
+last_return=n()
+l=last_return-last_yield
+d=o/(l+o)
+h('platform','DETAIL',e.info())
+return t
+end
+function e.step(o)
+if t.ready then o=0 end
+if o then
+local a,i
+if o==0 then
+if n()-last_return>=.05 then
+a=y
+s.queueEvent(a)
+else
+return
+end
+else
+a,i='timer',s.startTimer(o)
+end
+local o
+repeat
+o=r()
+if(a==nil or o[1]==a)and(i==nil or i==o[2])then
+break
+else
+t.signal(e,c(o))
+if t.ready then break end
+end
+until false
+return
+else
+if not a[e]then
+h('platform','ERROR','no timers or platform listeners, so exiting.')
+t.stop()
+return
+end
+local o
+if not i(a[e],i(a[e]))then
+o=i(a[e])
+end
+t.signal(e,c(r(o)))
+return
+end
+end
+function e._reset()
+a=t.fil
+end
+w.name(e,'platform')
+t.platform=e
+return e]===================],"CoolisOS/bin/kernel/sched/timer.lua",[===================[include'kernel.class'
+local r=require'utils.linked'
+local u=require'kernel.checker'.check
+local e=require'kernel.util'.shcopy
+local c=error
+local e=read
+PACKAGE_NAME='sched'
+local t=sched
+local e
+local l=t.Obj
+local e=os
+local a=math
+local a=tonumber
+local a=assert
+local a=table
+local a=pairs
+local a=next
+local p=type
+local a=_G
+local y=e.clock
+local n=setmetatable
+local m=rawset
+local d=unpack
+local s=debug
+env=getfenv()
+n(env,nil)
+local e={}
+e.norm=function(e)
+e=e-e%.05
+return e
+end
+local w=e.norm
+local function a(e)return nil end
+local h
+local a,o
+local i
+e.add=function(i)
+if not o[i]then
+local e
+for t in r.next_r,a,val do
+if t>i then
+e=t
+break
+end
+end
+if e==nil then t.ready=true end
+a:insert_r(i,e)
+end
+end
+e.remove=function(e)
+a:remove(e)
+end
+function e.step()
+if o[0]==-1 then return end
+local i=y()
+while o[0]~=-1 and i>=o[0]do
+local a=a:remove()
+t.signal(e,a)
+end
+end
+e.meta={__index=e}
+n(e,{__index=l,__tostring=function()return'Class timer'end})
+function e.nextevent()
+if o[0]~=-1 then return o[0]end
+end
+local l={
+__newindex=function(o,t,a)
+if p(t)~='number'then
+c(tostring(t)..'timer events must be numbers',2)
+end
+if a==nil then
+e.remove(t)
+else
+e.add(t)
+end
+m(o,t,a)
+end,
+}
+e._reset=function()
+local i=t.task(function()end)
+s.name(i,'placeholder')
+h=n({[{}]={[i]=true}},l)
+t.fil[e]=h
+a=r()
+o=a.r
+e.link=a
+end
+class.CyclicTimer(t.Obj)
+do
+local a=CyclicTimer
+local t=t.Obj
+function a:__init(e,...)
+t:__init(self)
+u('number,function',e,f)
+self.delta=w(e)
+self.f=f
+self.args={...}
+end
+function a:handle(t,e)
+e=e+self.delta
+self:link{timer={e}}
+self.f(d(self.args))
+end
+end
+e.cyclic=CyclicTimer
+s.name(e,'timer')
+t.timer=e
+return e]===================],"CoolisOS/bin/programs",true,"CoolisOS/bin/programs/help.lua",[===================[local t=peripheral.wrap'back'
+t.setTextScale(1)
+local r=1
+local e='CoolisOS/dev/text'
+local function d()
+local e=fs.open(e,'r')
+local t=e.readAll()
+e.close()
+return t
+end
+local function e(e)
+for e in e:gmatch("([^\n]*)\n?")do
+local e,e=e:match'^#([^#- ]+)-?([^#- ]*)#'
+end
+end
+local function l(a)
+local e=t
+local n,t=e.getSize()
+local o,i=e.getCursorPos()
+local s=0
+local function h()
+if i+1<=t then
+e.setCursorPos(1,i+1)
+else
+e.setCursorPos(1,t)
+e.scroll(1)
+end
+o,i=e.getCursorPos()
+s=s+1
+end
+while string.len(a)>0 do
+local t=string.match(a,"^[ \t]+")
+if t then
+e.write(t)
+o,i=e.getCursorPos()
+a=string.sub(a,string.len(t)+1)
+end
+local t=string.match(a,"^\n")
+if t then
+h()
+a=string.sub(a,2)
+end
+local t=string.match(a,"^[^ \t\n]+")
+if t then
+a=string.sub(a,string.len(t)+1)
+if string.len(t)>n then
+while string.len(t)>0 do
+if o>n then
+h()
+end
+e.write(t)
+t=string.sub(t,(n-o)+2)
+o,i=e.getCursorPos()
+end
+else
+if o+string.len(t)-1>n then
+h()
+end
+e.write(t)
+o,i=e.getCursorPos()
+end
+end
+end
+return s
+end
+local function u(t,i)
+local e={''}
+for a,t in t:gmatch('(%S+)(%s*)')do
+local o=e[#e]..a..t:gsub('\n','')
+if#o>i then
+table.insert(e,'')
+end
+if t:find('\n')then
+e[#e]=e[#e]..a
+t=t:gsub('\n',function()
+table.insert(e,'')
+return''
+end)
+else
+e[#e]=e[#e]..a..t
+end
+end
+return e
+end
+local function m(a,e,o)
+local t={}
+for o=e,e+o-1 do
+t[o-e+1]=a[o%(#a)+1]
+end
+return t
+end
+local function h(a)
+t.clear()
+t.setCursorPos(1,1)
+local i,e=t.getSize()
+for o,e in ipairs(a)do
+if(e:sub(1,1)=='#')then
+local a=colors[e:match'^#([^-#]+)']
+t.setTextColor(a or colors.white)
+local a=colors[e:match'^#[^-#]+%-([^#]+)#']
+t.setBackgroundColor(a or colors.black)
+local t=e:match'^#[^#]+#'
+e=e:sub(t:len()+1)
+end
+c=' '
+if(e:sub(-2,-2)=='&')then
+c=e:sub(-1,-1)
+e=e:sub(1,-3)
+end
+e=e..string.rep(c,math.max(i-#e,0))
+l(e..(o~=#a and'\n'or''))
+end
+end
+local function i()
+local n,s=t.getSize()
+local a
+local e=-1
+repeat
+local i,o=pcall(d)
+if i then a=o else error(o)end
+local a=u(a,n)
+e=(e+1)%(#a)
+t.setTextColor(colors.white)
+t.setBackgroundColor(colors.black)
+local o=a
+for e=1,(e+1)do
+local e=o[e]
+if(e:sub(1,1)=='#')then
+local a=colors[e:match'^#([^-#]+)']
+t.setTextColor(a or colors.white)
+local e=colors[e:match'^#[^-#]+%-([^#]+)#']
+t.setBackgroundColor(e or colors.black)
+end
+end
+h(m(a,e,s))
+sleep(r)
+until false
+end
+parallel.waitForAny(i,function()shell.run'shell'end)
+]===================],"CoolisOS/bin/programs/master.lua",[===================[rednet.open'right'
+
+function slave()
+	local t={
+	1=true
+	}
+	local send=function(id,n) turtle.select(id) turtle.drop(n) end
+	while true do
+		local _id,msg=rednet.receive()
+		local id,n=msg:match'([^:]):([^:])'
+		if id and n then
+			n=tonumber(n)
+			send(id,n)
+		end
+	end
+end
+
+function master()
+
+delay=5
+function _request(id,n)
+	repeat
+		rednet.broadcast(id..':'..n)
+		t=0
+		repeat
+			if turtle.getItemCount(1)==n then break end
+			sleep(dt)
+			t=t+dt
+		until t>delay
+	until turtle.getItemCount(1)==n
+	turtle.drop()
+end
+
+
+function request(id,n)
+	local r=n%64
+	local q=(n-r)/64
+	for i=1,q do _request(id,64) end
+	_request(id,r)
+end
+
+end]===================],"CoolisOS/bin/programs/quarry.lua",[===================[include'kernel.class'
+class.Machine()
+local function o(e)
+if e[1]then e[1].start=true end
+for a,t in ipairs(e)do
+t.next=e[a+1]
+t.index=a
+end
+end
+function Machine:__init(e)
+o(e)
+self.states=e
+end
+function Machine:find()
+for t,e in ipairs(self.states)do
+if e.is()then
+return e
+end
+end
+error'no match for state'
+end
+function Machine:run(e)
+e=e or self.states[1]
+while e do
+e.action()
+e=e.next
+end
+end
+Vec3=require'utils.Vec3'
+local h=5
+local s=300
+Var=require'kernel.class.Var'
+var=Var('ect/quarry.var')
+winding=require'dev.winding'
+include'utils.turtle'
+select=function(e)
+if type(e)~='number'then e=e.slot end
+return turtle.select(e)
+end
+drop=turtle.drop
+refuel=turtle.refuel
+function clear_inv()
+for e=7,16 do
+select(e)
+drop()
+end
+end
+function dirClear(e)select(16)clear(e)clear_inv()end
+api.ensureFuel=function()
+if turtle.getFuelLevel()<10 then
+refuel_machine:run()
+end
+end
+F,R,C,M,T,I={slot=1},{slot=2},{slot=3},{slot=4},{slot=5},{slot=6}
+function isInv(o,a,i,t)
+local function e(e)
+local e=turtle.getItemCount(e)
+if e==0 or e==1 then return e
+else error('inv not match')end
+end
+return e(2)==o and e(3)==a and e(4)==i and e(5)==t
+end
+function has(e)
+local e=turtle.getItemCount(e.slot)
+if e~=1 and e~=0 then error'no inv match'
+else return e==1 end
+end
+refuel_states={
+{
+is=function()
+select(F)
+refuel()
+return has(F)
+end,
+action=function()
+dirClear(up)
+select(F)
+up.place()
+end,
+},
+{
+is=function()return not refuel_states[1].is()end,
+action=function()
+repeat
+up.suck()
+turtle.refuel()
+if turtle.getFuelLevel()>10 then
+break
+else
+sleep(1)
+end
+until false
+drop()
+up.dig()
+end,
+},
+}
+well_states={
+{is=function()
+return isInv(1,1,1,1)
+end,
+action=function()
+select(16)
+down.dig()
+drop()
+force'forward'
+drop()
+down.dig()
+drop()
+select(M.slot)
+down.place()
+select(16)
+back()
+drop()
+select(C.slot)
+down.place()
+end,
+},
+{is=function()
+return isInv(1,0,0,1)
+end,
+action=function()
+select(R.slot)
+front.place()
+sleep(h)
+end,
+},
+{is=function()
+return isInv(0,0,0,1)and front.detect()
+end,
+action=function()
+if not back()then
+select(16)
+move'back'
+turn'back'
+end
+clear_inv()
+end},
+{is=function()
+return isInv(0,0,0,1)and not front.detect()
+end,
+action=function()
+select(T.slot)
+front.place()
+end,
+},
+{is=function()
+return isInv(0,0,0,0)
+end,
+action=function()
+local e=peripheral.wrap('front')
+e.shutdown()
+e.turnOn()
+select(R.slot)
+repeat
+front.suck()
+until turtle.getItemCount(R.slot)==1
+e.shutdown()
+end,
+},
+{is=function()
+return isInv(1,0,0,0)
+end,
+action=function()
+select(T.slot)
+front.dig()
+end,
+},
+{is=function()
+return isInv(1,0,0,1)and not down.detect()
+end,
+action=function()
+select(16)
+force'front'
+drop()
+end,
+},
+{is=function()
+return isInv(1,0,0,1)
+end,
+action=function()
+select(C.slot)
+down.dig()
+end,
+},
+{is=function()
+return isInv(1,1,0,1)and not down.detect()
+end,
+action=function()
+select(16)
+force'front'
+drop()
+end,
+},
+{is=function()
+return isInv(1,1,0,1)and down.detect()
+end,
+action=function()
+select(M.slot)
+down.dig()
+end,
+},
+}
+recharge_states={
+{
+is=function()
+return has(I)
+end,
+action=function()
+dirClear(up)
+select(I)
+up.place()
+end,
+},
+{
+is=function()return((not has(I))and has(R))end,
+action=function()
+select(R)
+repeat
+up.drop()
+until(not has(R))
+end,
+},
+{
+is=function()return not(has(I)or has(R))end,
+action=function()
+sleep(2)
+select(R)
+repeat
+up.suck()
+until(has(R))
+var.count=0
+select(I)
+up.dig()
+end,
+},
+}
+refuel_machine=Machine(refuel_states)
+recharge_machine=Machine(recharge_states)
+well_machine=Machine(well_states)
+wind_machine={
+run=function(e,n)
+function project(e)
+return{e.x,e.z}
+end
+print'...........'
+print((get()))
+print(n)
+local e=project((get())-n)
+print(e[1],e[2])
+var.count=var.count or 0
+repeat
+if var.count>s then
+recharge_machine:run()
+end
+print('actual:',e[1],e[2])
+local t=winding{e[1],e[2]}
+print('winding:',t[1],t[2])
+print('turning:',t[1]-e[1],0,t[2]-e[2])
+turn{t[1]-e[1],0,t[2]-e[2]}
+print('pos,dir:',get())
+local o,i=e[1],e[2]
+local a=math.max(math.abs(o),math.abs(i))
+if(not(o==a and i==(a-1)))and((not(a==math.abs(o)and a==math.abs(i)))or(a==o and a==-i))then
+well_machine:run()
+end
+local a=n+Vec3{t[1],0,t[2]}
+print('to:',a)
+goto(a)
+e=t
+until false
+end,
+}
+function resume()
+order={
+refuel_machine,
+recharge_machine,
+well_machine,
+}
+for e,t in ipairs(order)do
+local e=t:find()
+if not e.start then
+t:run(e)
+end
+end
+end
+function main(e,t)
+h=e or h
+s=t or s
+resume()
+var.center=var.center or(get())
+wind_machine:run(Vec3(var.center))
+end]===================],"CoolisOS/bin/programs/question.lua",[===================[local r=loadfile'CoolisOS/dev/questions'()
+local e=rs.setOutput
+local t=function(...)return e('back',...)end
+local a=function(...)return e('bottom',...)end
+for a,t in pairs(rs.getSides())do
+e(t,false)
+end
+local h=function()
+reset_term()
+print'Right Answer! Pass throught the door!'
+t(true)
+sleep(2)
+t(false)
+end
+local function o(t,e)
+t(true)
+sleep(e)
+t(false)
+sleep(e)
+end
+local s=function()
+reset_term()
+print'Wrong answer! Burn in hell!'
+local e=os.clock()
+while(os.clock()-e)<20 do
+o(a,1)
+end
+end
+function reset_term()
+term.clear()
+term.setCursorPos(1,1)
+end
+function copy(t)
+local e={}
+for t,a in pairs(t)do
+e[t]=a
+end
+return e
+end
+local n
+do
+local o
+o=function(e,t,i)
+if t==0 then
+i(e)
+else
+for a=1,t do
+e[t],e[a]=e[a],e[t]
+o(e,t-1,i)
+e[t],e[a]=e[a],e[t]
+end
+end
+end
+function permute_iter(e)
+local t=#e
+local e=coroutine.create(function()o(e,t,coroutine.yield)end)
+return function()
+local t,e=coroutine.resume(e)
+return e
+end
+end
+local function t(e)
+if e==0 then return 1 end
+return e*t(e-1)
+end
+function n(e)
+local t=math.random()*(t(#e))
+local e=permute_iter(e)
+for t=1,t-1 do e()end
+local e=e()
+return e
+end
+end
+function test()
+for e,t in pairs(r)do
+reset_term()
+print(t[1])
+if type(t[2])=='string'then
+print'Type answer.'
+if t[2]~=read()then
+return false
+end
+else
+local a=n(copy(t[2]))
+for e,t in pairs(a)do
+print(e..')'..t)
+end
+print'Press the number key matching the right answer'
+local e,o,i
+repeat
+local t={os.pullEvent()}
+o,e=t[1],t[2]
+i,e=pcall(tonumber,e)
+until(o=='char'and type(e)=='number'and 1<=e and e<=#a)
+if a[e]~=t[2][1]then
+return false
+end
+end
+end
+return true
+end
+os.pullEvent=os.pullEventRaw
+s()
+repeat
+if test()then
+h()
+else
+s()
+end
+until false]===================],"CoolisOS/bin/programs/questions",[===================[local questions={
+        {
+        [[When was LG Founded??]],
+        [[2000]],
+        },
+        {
+                [[Who of the following is NOT a member of LG?]],
+                {
+                'DarkRaven',
+                'FatherAbel',
+                'Tuglowz',
+                'Sanitty',
+                },
+        },
+        {
+        [[What is Legacy Gaming's website address minus the www]],
+        [[legacygaming.com]],
+        },
+        {
+                [[How Does LG Staff handle griefing?]],
+                {
+                'All of these',
+                'With a Ban',
+                'With Jail',
+                'With Smite',
+                'None of these (except this one)',
+                },
+        },
+        {
+                [[What are you supposed to do if you see someone breaking the rules?]],
+                {
+                [[Message an Admin AND Email DcGLegacyGaming@gmail.com]],
+                [[Message an Admin]],
+                [[Call the police]],
+                [[Email DcGLegacyGaming@gmail.com]],
+                [[Message an Admin AND Call the police]],
+                [[All of these]],
+                },
+        },
+        {
+                [[What is the Owner of LG's Minecraft Name?]],
+                [[RoseD83]],
+        },
+}
+return questions]===================],"CoolisOS/bin/programs/recharge.lua",[===================[_log=log
+log=function(...)return _log('recharge',...)end
+args={...}
+tmax=args[1]and tonumber(args[1])or 1800
+local e=require'kernel.class.Var'
+var=e('ect/recharger.var')
+local a=require'utils.turtle'
+local e=a.moves.down
+local t=a.moves.up
+g1=e.detect
+g2=function()return turtle.getItemCount(1)==1 end
+g3=function()return turtle.getItemCount(2)==1 end
+select=turtle.select
+function out()
+log('INFO','outputing cell')
+select(2)
+repeat
+t.drop()
+if not(g3()and g2())then break else sleep(1)end
+until false
+log('INFO','done')
+end
+function place()
+log('INFO','placing cell')
+select(1)
+repeat
+e.place()
+if(not g2())and g1()then break else sleep(1)end
+until g1()
+log('INFO','done')
+end
+function remove()
+log('INFO','removing cell')
+select(2)
+a.clear(e)
+log('INFO','done')
+end
+local e
+function main()
+sleep(5)
+repeat
+log('INFO','starting')
+if g1()and g2()then
+remove()
+end
+if g2()and g3()then
+out()
+sleep(5)
+end
+if g2()and not g3()then
+place()
+var.count=0
+end
+if g1()and not(g2()and g3())then
+log('INFO','recharging')
+var.count=var.count or 0
+tc=var.count
+ti=os.clock()
+select(1)
+repeat
+var.count=(os.clock()-ti)+tc
+print('now:'..var.count..';max='..tmax)
+sleep(1)
+t.suck()
+if g2()or e then break end
+until var.count>tmax
+log('INFO','done')
+remove()
+end
+if g3()and not(g1()and g2())then
+log('INFO','waiting for input')
+select(1)
+repeat
+t.suck()
+if not g2()then
+sleep(1)
+else
+break
+end
+until false
+log('INFO','done')
+end
+sleep(1)
+log('INFO','done')
+until false
+end
+function control()
+while true do
+ev,id=os.pullEvent()
+if ev=='char'and id=='k'then e=not e end
+if ev=='char'and id=='l'then e=not e sleep(3)e=not e end
+end
+end
+parallel.waitForAny(control,main)]===================],"CoolisOS/bin/programs/test.lua",[===================[function r()
+v=loadreq.reload'utils.Vec3'
+t=loadreq.reload'utils.turtle'
+end
+r()
+function g()
+shell.run('CoolisOS/dev/quarry.lua')
+m=recharge_machine
+end
+g()
+]===================],"CoolisOS/bin/programs/text",[===================[#white-black#&-
+Hello!
+#green-white#Green!
+]===================],"CoolisOS/bin/programs/transpose.lua",[===================[while true do
+turtle.suckUp()
+while turtle.getItemCount(1)~=0 do
+turtle.drop()
+end
+sleep(1)
+end]===================],"CoolisOS/bin/programs/winding.lua",[===================[local n=math.max
+local a=math.abs
+function winding(o)
+local e,t=o[1],o[2]
+local a,i=a(e),a(t)
+local a=n(a,i)
+if e==a and i~=a then
+return{e,t+1}
+elseif t==a and e~=-a then
+return{e-1,t}
+elseif e==-a and t~=-a then
+return{e,t-1}
+elseif t==-a then
+return{e+1,t}
+elseif t==-a and e==a then
+return{e+1,t}
+else print(o[1],o[2])_error'not a valid state'end
+end
+return winding
+]===================],"CoolisOS/bin/utils",true,"CoolisOS/bin/utils/git.lua",[===================[local o,s,t,h,n={...},nil,nil,"","master"
+local l=[[
+ github <user> <repo> [path] [remote path] [branch]
+ Remote path defaults to the root of the repo.
+ Path defaults to the download folder.
+ Branch defaults to master.
+ If you want to leave an option empty use a dot.
+ Example: github johnsmith hello-world . foo
+ Everything inside the directory foo will be 
+ downloaded to downloads/hello-world/.
+  ]]
+local d=[[
+@blacklistedfile
+]]
+local r="Github Repo Downloader"
+local i={dirs={},files={}}
+local e,a=term.getSize()
+function printTitle()
+local t=2
+term.setCursorPos(1,t)
+for e=2,e,1 do write("-")end
+term.setCursorPos((e-r:len())/2,t+1)
+print(r)
+for e=2,e,1 do write("-")end
+end
+function writeCenter(t)
+term.clear()
+printTitle()
+term.setCursorPos((e-t:len())/2-1,a/2-1)
+for e=-1,t:len(),1 do write("-")end
+term.setCursorPos((e-t:len())/2-1,a/2)
+print("|"..t.."|")
+term.setCursorPos((e-t:len())/2-1,a/2+1)
+for e=-1,t:len(),1 do write("-")end
+end
+function printUsage()
+local t="Press space key to continue"
+term.clear()
+printTitle()
+term.setCursorPos(1,a/2-4)
+print(l)
+term.setCursorPos((e-t:len())/2,a/2+7)
+print(t)
+while true do
+local t,e=os.pullEvent("key")
+if e==57 then
+sleep(0)
+break
+end
+end
+term.clear()
+term.setCursorPos(1,1)
+end
+function downloadFile(e,a,t)
+writeCenter("Downloading File: "..t)
+dirPath=e:gmatch('([%w%_%.% %-%+%,%;%:%*%#%=%/]+)/'..t..'$')()
+if dirPath~=nil and not fs.isDir(dirPath)then fs.makeDir(dirPath)end
+local t=http.get(a)
+local e=fs.open(e,"w")
+e.write(t.readAll())
+e.close()
+end
+function getGithubContents(e)
+local i,o,a,h={},{},{},{}
+local e=http.get("https://api.github.com/repos/"..s.."/"..t.."/contents/"..e.."/?ref="..n)
+if e then
+e=e.readAll()
+if e~=nil then
+for e in e:gmatch('"type":"(%w+)"')do table.insert(i,e)end
+for e in e:gmatch('"path":"([^\"]+)"')do table.insert(o,e)end
+for e in e:gmatch('"name":"([^\"]+)"')do table.insert(a,e)end
+end
+else
+writeCenter("Error: Can't resolve URL")
+sleep(2)
+term.clear()
+term.setCursorPos(1,1)
+error()
+end
+return i,o,a
+end
+function isBlackListed(e)
+if d:gmatch("@"..e)()~=nil then
+return true
+end
+end
+function downloadManager(e)
+local d,e,o=getGithubContents(e)
+for a,r in pairs(d)do
+if r=="file"then
+checkPath=http.get("https://raw.github.com/"..s.."/"..t.."/"..n.."/"..e[a])
+if checkPath==nil then
+e[a]=e[a].."/"..o[a]
+end
+local r="downloads/"..t.."/"..e[a]
+if h~=""then r=h.."/"..t.."/"..e[a]end
+if not i.files[r]and not isBlackListed(e[a])then
+i.files[r]={"https://raw.github.com/"..s.."/"..t.."/"..n.."/"..e[a],o[a]}
+end
+end
+end
+for a,r in pairs(d)do
+if r=="dir"then
+local r="downloads/"..t.."/"..e[a]
+if h~=""then r=h.."/"..t.."/"..e[a]end
+if not i.dirs[r]then
+writeCenter("Listing directory: "..o[a])
+i.dirs[r]={"https://raw.github.com/"..s.."/"..t.."/"..n.."/"..e[a],o[a]}
+downloadManager(e[a])
+end
+end
+end
+end
+function main(e)
+writeCenter("Connecting to Github")
+downloadManager(e)
+for t,e in pairs(i.files)do
+downloadFile(t,e[1],e[2])
+end
+writeCenter("Download completed")
+sleep(2,5)
+term.clear()
+term.setCursorPos(1,1)
+end
+function parseInput(r,i,o,e,a)
+if e==nil then e=""end
+if a~=nil then n=a end
+if i==nil then printUsage()
+else
+s=r
+t=i
+if o~=nil then h=o end
+main(e)
+end
+end
+if not http then
+writeCenter("You need to enable the HTTP API!")
+sleep(3)
+term.clear()
+term.setCursorPos(1,1)
+else
+for e=1,5,1 do
+if o[e]=="."then o[e]=nil end
+end
+parseInput(o[1],o[2],o[3],o[4],o[5])
+end]===================],"CoolisOS/bin/utils/linked.lua",[===================[include'kernel.class'
+local e=pairs
+local i=print
+class.Linked()
+function Linked:__init(e)
+self.r,self.l={[0]=-1},{[-1]=0}
+if e then self:append_r(e)end
+end
+function Linked._insert(e,t,o,a)
+if e.r[t]then return end
+o,a=o or 0,a or-1
+e.r[o],e.l[t],e.r[t],e.l[a]
+=t,o,a,t
+end
+function Linked.insert_l(t,a,e)
+return Linked._insert(t,a,e,t.r[e or 0])
+end
+function Linked.insert_r(t,a,e)
+return Linked._insert(t,a,t.l[e or-1],e)
+end
+function Linked.remove(t,e)
+e=e or t.r[0]
+if t.r[e]then t.r[t.l[e]],t.l[t.r[e]],t.r[e],t.l[e]=t.r[e],t.l[e],nil,nil end
+if e==-1 then e=nil end
+return e,t.r[e]
+end
+function Linked.next_r(t,e)
+local e=t.r[e or 0]
+if e~=-1 then return e end
+end
+function Linked.next_l(e,t)
+local e=e.r[t or-1]
+if e~=0 then return e end
+end
+function Linked.__tostring(e)
+s={}
+for e in self.next_r,e,nil do
+table.insert(s,tostring(e))
+end
+return'Linked instance:'..table.concat(s,'<>')
+end
+function Linked:append_r(t)
+local e
+for a,t in ipairs(t)do
+self:insert_r(t,e)
+e=t
+end
+end
+function Linked:has(e)
+return self.r[e]~=nil
+end
+function Linked:isempty()
+return self.r[0]==-1
+end
+Linked.append=Linked.append_r
+Linked.push=Linked.insert_r
+Linked.pop=Linked.remove
+function Linked.test()
+t={'a',3,4}
+l=Linked(t)
+i(l)
+l:remove(3)
+i(l)
+i(l:has(4),l:has(3))
+return l
+end
+return Linked]===================],"CoolisOS/bin/utils/luau.lua",[===================[luau_={}
+luau_.n=0
+luau_.opt={}
+luau_.mac={}
+luau_.mac.la={['def']='os.loadAPI("%1")',['pnum']=1}
+luau_.opt.skip_lines={
+['type']='number',
+['value']=0,
+['default']=0,
+['desc']='Number of blank lines to skip between input/output pairs.'
+}
+luau_.opt.use_color={
+['type']='boolean',
+['value']=true,
+['default']=true,
+['desc']='Whether to use color, if available.'
+}
+in_={}
+out_={}
+luau_.help={}
+luau_.help.summary='The following topics are available, and can be abbreviated--for instance, "/help sub" for "/help substitution".'
+luau_.help.substitution='Typing "s/find-expr/replace-expr/" will repeat the previously entered line, but with all occurrences of find-expr replaced by replace-expr. Lua\'s string-matching patterns may be used in find-expr. This is often quicker than using up-arrow to recall the command and editing it manually.'
+luau_.help.history='The tables in_ and out_ hold the input and output histories, and can be referenced, for example: "result=out_[9]".'
+luau_.help['repeat-command']='To repeat a previous input, use the "!<n>" command. For example, typing !23 will re-evaluate the 23rd command in the history.'
+luau_.help['question-mark']='The "?" character is a shortcut for print: "?foo" is short for "print(foo)". If foo is a table, then its keys and values will be displayed.'
+luau_.help['macros']='You can define macros to shorten frequently-typed strings. For example, if you type "/macro %la=os.loadAPI", then in the future any occurence of "%la" in commands you type will be changed to "os.loadAPI" before processing by Lua.\n\nMacros can also accept parameters. For example, "/macro %rs=rednet.send(%1,%2)" will tell luau to expand "%rs[23][\'hi!\']" into "rednet.send(23,\'hi!\')".\n\nParameters may appear more than once and out of order--a silly example is "/macro %palindrome=%3%2%1%2%3", which expands "%palindrome[A][B][C]" into "CBABC".'
+luau_.help['commands']='Luau has some built-in commands which are invoked by starting a line with the slash "/" character. Type "/commands" for a list.'
+luau_.helpkeys={}
+for e in pairs(luau_.help)do
+if e~='summary'then
+table.insert(luau_.helpkeys,e)
+end
+end
+table.sort(luau_.helpkeys)
+if term.isColor()then
+term.setTextColor(colors.gray)
+luau_.setColor=function(e)
+if luau_.opt.use_color.value then
+term.setTextColor(e)
+else
+term.setTextColor(gray)
+end
+end
+else
+luau_.setColor=function(e)return end
+end
+luau_.terminated=false
+function luau_.terminate()
+luau_.terminated=true
+end
+function luau_.separator()
+return(string.rep('-',term.getSize()))
+end
+function luau_.loadData()
+local e
+if fs.exists('luau.conf')then
+e=fs.open('luau.conf','r')
+local t,a
+t=textutils.unserialize(e.readLine())
+a=textutils.unserialize(e.readLine())
+e.close()
+if type(t)=='table'and type(a)=='table'then
+luau_.opt=t
+luau_.mac=a
+return true
+else
+luau_.showError('Unable to load configuration; /luau.conf is corrupt. Exiting. (Delete or rename /luau.conf to start fresh)')
+return false
+end
+else
+luau_.setColor(colors.blue)
+print('Configuration file /luau.conf does not exist; creating with default values.')
+luau_.saveData()
+return true
+end
+end
+function luau_.saveData()
+h=fs.open('luau.conf','w')
+h.writeLine(textutils.serialize(luau_.opt))
+h.writeLine(textutils.serialize(luau_.mac))
+h.close()
+end
+function luau_.firstMatch(t,e)
+for a,e in ipairs(e)do
+if string.find(e,t)==1 then
+return e
+end
+end
+return nil
+end
+function luau_.showError(e)
+luau_.setColor(colors.red)
+print(e)
+luau_.setColor(colors.gray)
+end
+function luau_.trim(e)
+return(e:gsub("^%s*(.-)%s*$","%1"))
+end
+function luau_.macro(e)
+local a,o,t
+a,o,t=e:find('!(%d+)')
+t=tonumber(t)
+if a==1 then
+if in_[t]then
+e=in_[t]
+else
+luau_.showError("History entry "..tostring(t).." not found.")
+e=''
+end
+return e
+end
+a,o,find,replace,flags=e:find('s/(.+)/(.*)/(.*)')
+if find and in_[luau_.n]then
+e=in_[luau_.n-1]:gsub(find,replace)
+return e
+end
+local s,i='>tboss>','<tboss<'
+for t,a in pairs(luau_.mac)do
+local o='%%'..t..string.rep('(%b[])',a.pnum)
+local t=e..string.rep('[ ]',a.pnum)
+local h,n=t:find(o)
+if n and n<=e:len()then
+if t:find(o)then
+local n=a.def:gsub('(%%%d)',s..'%1'..i)
+t=t:gsub(o,n)
+t=t:gsub(s..'%[','')
+t=t:gsub('%]'..i,'')
+e=t:sub(1,t:len()-3*a.pnum)
+end
+end
+end
+return e
+end
+function luau_.columnList(a)
+local e=0
+for a,t in ipairs(a)do
+if string.len(t)>e then e=string.len(t)end
+end
+local t=2
+local o,i=term.getSize()
+local n=math.floor((o+t)/(e+t))
+for i,o in ipairs(a)do
+if(i%n==0)or(i==#a)then
+print(o)
+else
+write(o..string.rep(' ',e+t-string.len(o)))
+end
+end
+end
+function luau_.showHelp(e)
+luau_.setColor(colors.blue)
+e=tostring(e)
+if e~=''then
+local t=luau_.firstMatch(e,luau_.helpkeys)
+if luau_.help[t]then
+local a,e=term.getSize()
+textutils.pagedPrint('('..t..') '..luau_.help[t],e-3)
+else
+print('No help found for "'..e..'". Type "help" for a list of topics.')
+end
+else
+print(luau_.help.summary)
+print(luau_.separator())
+luau_.columnList(luau_.helpkeys)
+end
+end
+function luau_.searchHistory(a)
+local e=0
+for o,t in ipairs(in_)do
+if string.find(t,a)then
+print(o..': '..t)
+e=e+1
+end
+end
+return e
+end
+function luau_.keySort(t,e)
+if type(t)=='number'and type(e)=='number'then
+return t<e
+elseif type(t)=='number'then
+return true
+elseif type(e)=='number'then
+return false
+elseif type(t)=='string'and type(e)=='string'then
+return t<e
+elseif type(t)=='string'then
+return true
+elseif type(e)=='string'then
+return false
+else
+return(type(t)<type(e))
+end
+end
+function luau_.serial(e)
+if string.find("nil boolean number string table",type(e))then
+local a,t=pcall(function()textutils.serialize(e)end)
+if a then t=tostring(e)end
+return t
+else
+return tostring(e)
+end
+end
+function luau_.setMacro(e,t)
+luau_.setColor(colors.yellow)
+if e==''then
+print("The following macros are currently defined:")
+print(luau_.separator())
+for e in pairs(luau_.mac)do
+print("%"..e.."="..luau_.mac[e].def)
+end
+else
+local o,o,e,a=e:find('%%([%w_]+)=(.*)')
+if e then
+if luau_.mac[e]and not t then
+print('Macro %'..e..' is already defined. Use /Macro to overwrite it.')
+return false
+end
+local t=0
+a:gsub('%%(%d+)',function(e)t=tonumber(e)end)
+luau_.mac[e]={['def']=a,['pnum']=t}
+luau_.saveData()
+else
+luau_.showError('Invalid macro definition (see /help macro).')
+return false
+end
+end
+return true
+end
+function luau_.setOpt(e)
+luau_.setColor(colors.yellow)
+if e==''then
+print('The following options are available. Type "/option <option_name>=<value>" to change, or "/option <option_name>" to get a description.')
+local e={}
+for t in pairs(luau_.opt)do e[#e+1]=t end
+table.sort(e,luau_.keySort)
+print(luau_.separator())
+for t,e in ipairs(e)do
+print(e..'='..tostring(luau_.opt[e].value))
+end
+elseif e:find('=')then
+local a,a,t,i=e:find("([%w_]+)%s*=%s*(.*)")
+if luau_.opt[t]then
+local o=luau_.opt[t].type
+local a=false
+if o=='boolean'then
+local e=i:lower()
+if e=='true'or e=='1'or e=='yes'or e=='y'then
+luau_.opt[t].value=true
+a=true
+elseif e=='false'or e=='0'or e=='no'or e=='n'then
+luau_.opt[t].value=false
+a=true
+end
+elseif o=='number'then
+local e=tonumber(i)
+if e then
+luau_.opt[t].value=e
+a=true
+end
+elseif o=='string'then
+luau_.opt[t].value=i
+a=true
+end
+if a then
+luau_.saveData()
+else
+print('Value for '..t..' must be of type '..o..'.')
+end
+else
+print('Option "'..e..'" not found. Type "/option" for a list.')
+end
+else
+if luau_.opt[e]then
+print(luau_.opt[e].desc..' [type='..luau_.opt[e].type..', value='..tostring(luau_.opt[e].value)..', default='..tostring(luau_.opt[e].default)..']')
+else
+print('Option "'..e..'" not found. Type "/option" for a list.')
+end
+end
+end
+function luau_.showCommands(e)
+luau_.setColor(colors.blue)
+if e==''then
+print('The following commands are available. Type "/command <command-name>" for details.')
+print(luau_.separator())
+luau_.columnList(luau_.cmdNames)
+else
+local t=luau_.firstMatch(e,luau_.cmdNames)
+if t then
+print('/'..t..': '..luau_.cmd[t].desc)
+else
+print('Command "'..e..'" not found. Type "/commands" for a list.')
+end
+end
+end
+luau_.cmd={}
+luau_.cmd.help={
+['handler']=luau_.showHelp,
+['desc']='Online help. Type "/help <topic>", or "/help" for a list of topics.',
+}
+luau_.cmd.exit={
+['handler']=luau_.terminate,
+['desc']='Exits Luau and returns you to the shell or wherever else you launched it from.',
+}
+luau_.cmd.history={
+['handler']=luau_.searchHistory,
+['desc']='Typing "/history" will simply print the entire history buffer, while "/history <pattern>" will only show entries matching <pattern>.',
+}
+luau_.cmd.macro={
+['handler']=function(e)luau_.setMacro(e,false)end,
+['desc']='Define a text-expansion macro with "/macro %<name>=<output>", or type "/macro" for a list of existing macros. Type "/help macros" for more details.',
+}
+luau_.cmd.Macro={
+['handler']=function(e)luau_.setMacro(e,true)end,
+['desc']='Same as "/macro", but able to overwrite existing definitions.',
+}
+luau_.cmd.options={
+['handler']=luau_.setOpt,
+['desc']='Type "/options" for a list of all options, "/option <name>" for an option\'s description, or "/option <name>=<value>" to change it.',
+}
+luau_.cmd.commands={
+['handler']=luau_.showCommands,
+['desc']='Type "/commands" for a list of commands, or "/command <command-name>" to view a description of a particular one.',
+}
+luau_.cmdNames={}
+for e in pairs(luau_.cmd)do table.insert(luau_.cmdNames,e)end
+table.sort(luau_.cmdNames)
+function luau_.go()
+if not luau_.loadData()then return false end
+luau_.setColor(colors.blue)
+print()
+print('LUAU--LUA Upgraded v0.1 by Tinyboss\nType "/exit" to exit, "/help" for help.')
+while not luau_.terminated do
+luau_.setColor(colors.gray)
+for e=1,luau_.opt.skip_lines.value do print()end
+luau_.n=luau_.n+1
+local e=''
+while luau_.trim(e)==''do
+luau_.setColor(colors.lime)
+write(' in_['..luau_.n..']: ')
+luau_.setColor(colors.lightGray)
+e=luau_.trim(read(false,in_,getfenv(1)))
+end
+in_[luau_.n]=e
+luau_.handled=false
+if in_[luau_.n]:sub(1,1)=="?"then
+rest_=luau_.trim(in_[luau_.n]:sub(2))
+if rest_==""then
+luau_.setColor(colors.blue)
+print('"?foo" is a synonym for "print(foo)". Use "/help" for help.')
+luau_.handled=true
+elseif type(getfenv(1)[rest_])=="table"then
+local e={}
+for t in pairs(getfenv(1)[rest_])do
+e[#e+1]=t
+end
+table.sort(e,luau_.keySort)
+local t={}
+for a,e in ipairs(e)do
+t[a]=luau_.serial(e)..'='
+..luau_.serial(getfenv(1)[rest_][e])
+end
+print('{',table.concat(t,', '),'}')
+luau_.handled=true
+else
+in_[luau_.n]='print('..in_[luau_.n]:sub(2)..')'
+end
+end
+if not luau_.handled then
+local t,o,e,a=in_[luau_.n]:find('/(%a+)%s*(.*)')
+if t==1 then
+e=luau_.firstMatch(e,luau_.cmdNames)
+if e then
+luau_.cmd[e].handler(a)
+else
+luau_.setColor(colors.yellow)
+print('Invalid command. (Try "/help".)')
+end
+else
+in_[luau_.n]=luau_.macro(in_[luau_.n])
+luau_.setColor(colors.gray)
+is_print_=string.sub(in_[luau_.n],1,6)=='print('
+func_,err_=loadstring('out_[luau_.n]='..in_[luau_.n])
+if err_ then
+func_,err_=loadstring(in_[luau_.n])
+if err_ then
+luau_.showError('(loadstring)'..err_)
+else
+setfenv(func_,getfenv(1))
+success_,err_=pcall(func_)
+if not success_ then
+luau_.showError(err_)
+end
+end
+else
+setfenv(func_,getfenv(1))
+success_,err_=pcall(func_)
+if success_ then
+if out_[luau_.n]and not is_print_ then
+luau_.setColor(colors.green)
+write('out_['..luau_.n..']: ')
+luau_.setColor(colors.gray)
+print(out_[luau_.n])
+end
+else
+luau_.showError(err_)
+end
+end
+end
+end
+end
+luau_.saveData()
+end
+luau_.go()]===================],"CoolisOS/bin/utils/path.lua",[===================[local a=require"kernel.checker".check
+local e={}
+local l,u,t,c,d,r,h,s
+local function o(n,e,t)
+local i={}
+local a
+local o=0
+e=e or 1
+t=t or#n
+for e=e,t do
+local e=n[e]
+if not e then break
+elseif e==''then
+o=o+1
+else
+table.insert(i,a)
+a=e
+end
+end
+table.insert(i,a)
+return table.concat(i,'.',1,t-e+1-o)
+end
+function h(...)
+return o({...})
+end
+function u(e)
+a('string',e)
+local e=t(e)
+return o(e)
+end
+function d(i,e,o)
+a('table,string|table',i,e)
+local e=type(e)=='string'and t(e)or e
+local t=table.remove(e)
+local e=s(i,e,o~=nil)
+if e then e[t]=o end
+end
+function c(o,e)
+a('table,string|table',o,e)
+local e=type(e)=='string'and t(e)or e
+local t=table.remove(e)
+if not t then return o end
+local e=s(o,e)
+return e and e[t]
+end
+function r(e)
+a('string',e)
+local t=t(e)
+local a=#t
+local e=a
+local function i()
+if e==-1 then return nil,nil end
+local a,t=o(t,1,e),o(t,e+1,a)
+e=e-1
+return a,t
+end
+return i
+end
+function l(i,e)
+a('string,number',i,e)
+local t=t(i)
+if e>#t then return i,''
+elseif-e>#t then return'',i
+else
+if e<0 then e=#t+e end
+return o(t,1,e),o(t,e+1,#t)
+end
+end
+function t(t)
+a('string',t)
+local i={}
+local o,a,e=1
+repeat
+a=t:find(".",o,true)or#t+1
+e=t:sub(o,a-1)
+e=tonumber(e)or e
+if e and e~=""then table.insert(i,e)end
+o=a+1
+until a==#t+1
+return i
+end
+function s(n,i,s)
+a('table,string|table',n,i)
+i=type(i)=="string"and t(i)or i
+for a,t in ipairs(i)do
+local e=n[t]
+if type(e)~="table"then
+if not s or(s=="noowr"and e~=nil)then return nil,o(i,1,a)
+else e={}n[t]=e end
+end
+n=e
+end
+return n
+end
+e.split=l;e.clean=u;e.segments=t;e.get=c;e.set=d;
+e.gsplit=r;e.concat=h;e.find=s
+return e
+]===================],"CoolisOS/bin/utils/print.lua",[===================[local e=io
+local u=string
+local a=table
+local d=type
+local i=tostring
+local l=pairs
+local c=print
+local m=getmetatable
+local t=select
+env=getfenv()
+setmetatable(env,nil)
+mtostring=function(...)
+local e={}
+for o=1,t('#',...)do
+a.insert(e,i(t(o,...)))
+end
+return a.concat(e,';')
+end
+if e and e.stdout then
+e.stdout:setvbuf("line")
+end
+local function f(t)
+local function a(e)return
+e=='"'and'\\"'or
+e=='\\'and'\\\\'or
+u.format('\\%03d',e:byte())
+end
+return'"'..t:gsub('[%z\1-\9\11\12\14-\31\128-\255"\\]',a)..'"'
+end
+function vprint(e,h,...)
+local r={}
+local o=0
+local t=a.insert
+local function s(t)
+local n=d(t)
+if n=="string"then e(f(t))
+elseif n=="boolean"then e(t and"true"or"false")
+elseif n=="number"then e(i(t))
+elseif n=="nil"then e("nil")
+elseif n=="table"then
+if m(t)and m(t).__tostring then e(i(t))
+elseif r[t]then e(i(a))else
+r[t]=true
+o=o+1
+local function u()
+if h then e(",\r\n"..(" "):rep(h*o))
+else e(", ")end
+end
+local a,i=false,false
+for e in l(t)do
+if a then i=true;break
+else a=true end
+end
+if not a then e"{ }";return
+elseif not i or not h then e"{ "
+else e("{\r\n"..(" "):rep(h*o))end
+local i={}
+local a=0
+repeat
+local e=a+1
+local t=t[e]~=nil
+if t then i[e]=true;a=e end
+until not t
+for e=1,a do
+if e>1 then u()end
+s(t[e])
+end
+local n=true
+for t,o in l(t)do
+if not i[t]then
+if not n or a~=0 then u()end
+n=false
+if d(t)=="string"and t:match"^[%a_][%w_]*$"then e(t.." = ")
+else e("[");s(t);e("] = ")end
+s(o)
+end
+end
+e(" }")
+o=o-1
+r[t]=nil
+end
+else e(i(t))end
+end
+local o={...}
+local a=a.getn(o)
+for t=1,a do s(o[t]);if t<a then e"\t"end end
+end
+function p(...)
+local e={}
+local function o(t)
+a.insert(e,t)
+end
+vprint(o,3,...)
+c(a.concat(e))
+end
+function siprint(o,...)
+local t,e=a.insert,{}
+vprint(function(a)return t(e,a)end,o,...)
+return a.concat(e)
+end
+function sprint(...)
+return siprint(false,...)
+end
+function printf(...)return c(u.format(...))end
+return env]===================],"CoolisOS/bin/utils/serpent.lua",[===================[local z,T="serpent",.224
+local E,_="Paul Kulchenko","Lua serializer and pretty printer"
+local c={[tostring(1/0)]='1/0 --[[math.huge]]',[tostring(-1/0)]='-1/0 --[[-math.huge]]',[tostring(0/0)]='0/0'}
+local g={thread=true,userdata=true}
+local n,l,t={},{},(_G or _ENV)
+for t,e in ipairs({'and','break','do','else','elseif','end','false',
+'for','function','goto','if','in','local','nil','not','or','repeat',
+'return','then','true','until','while'})do n[e]=true end
+for t,e in pairs(t)do l[e]=t end
+for a,e in ipairs({'coroutine','io','math','string','table','os'})do
+for a,t in pairs(t[e])do l[t]=e..'.'..a end end
+local function y(z,t)
+local y,b,u,e=t.name,t.indent,t.fatal,t.debug
+local q,k,d,f=t.sparse,t.custom,not t.nohuge,t.debug
+local s,_=(t.compact and''or' '),(t.maxlevel or math.huge)
+local p,h='_'..(y or''),t.comment and(tonumber(t.comment)or math.huge)
+local o,r,i,a={},{'local '..p..'={}'},{},0
+local function v(e)return'_'..(tostring(tostring(e)):gsub("[^%w]",""):gsub("(%d%w+)",
+function(e)if not i[e]then a=a+1;i[e]=a end return i[e]end))end
+local function w(e)return type(e)=="number"and(d and c[tostring(e)]or e)
+or type(e)~="string"and tostring(e)
+or("%q"):format(e):gsub("\010","n"):gsub("\026","\\026")end
+local function d(e,t)
+return h and(t or 0)<h and' --[['..(f and type(e)~='string'and debug.getinfo(e)or tostring(e))..']]'or''end
+local function x(e,t)return l[e]and l[e]..d(e,t)or not u
+and w(select(2,pcall(tostring,e)))or error("Can't serialize "..tostring(e))end
+local function j(t,e)
+local e=e==nil and''or e
+local a=type(e)=="string"and e:match("^[%l%u_][%w_]*$")and not n[e]
+local e=a and e or'['..w(e)..']'
+return(t or'')..(a and t and'.'or'')..e,e end
+local E=type(t.sortkeys)=='function'and t.sortkeys or function(a,t,e)
+local t,i=tonumber(e)or 12,{number='a',string='b'}
+local function o(e)return("%0"..t.."d"):format(e)end
+table.sort(a,function(t,e)
+return(a[t]and 0 or i[type(t)]or'z')..(tostring(t):gsub("%d+",o))
+<(a[e]and 0 or i[type(e)]or'z')..(tostring(e):gsub("%d+",o))end)end
+local function u(e,h,n,c,m,z,a,i)
+local y,i,a=type(e),(a or 0),getmetatable(e)
+local m,b=j(m,h)
+local h=z and
+((type(h)=="number")and''or h..s..'='..s)or
+(h~=nil and b..s..'='..s or'')
+if o[e]then
+if f then return h..d(e,i)end
+table.insert(r,m..s..'='..s..o[e])
+return h..'nil'..d('ref'..tostring(e),i)end
+if a and not f then
+if a.__serialize or a.__tostring then
+o[e]=c or m
+if rawget(a,'__serialize')then e=a.__serialize(e)else e=tostring(e)end
+y=type(e)
+end
+end
+if y=="table"then
+if i>=_ then return h..'{}'..d('max',i)end
+o[e]=c or m
+if next(e)==nil then return h..'{}'..d(e,i)end
+local m,a,w=#e,{},{}
+for e=1,m do table.insert(a,e)end
+for e in pairs(e)do if not a[e]then table.insert(a,e)end end
+if t.sortkeys then E(a,e,t.sortkeys)end
+for h,a in ipairs(a)do
+local h,m,y=e[a],type(a),h<=m and not q
+if t.valignore and t.valignore[h]
+or t.keyallow and not t.keyallow[a]
+or t.valtypeignore and t.valtypeignore[type(h)]
+or q and h==nil then
+elseif m=='table'or m=='function'or g[m]then
+if f then
+local e
+if not(o[a]or l[a])then
+o[a]=debug.getinfo(a)
+e='['..(u(a,nil,n,nil,nil,false,i+1))..']'..d(a,i)
+end
+table.insert(w,u(h,e or(o[a]or l[a]),n,c,nil,true,i+1))
+else
+if not o[a]and not l[a]then
+local e=j(p,v(a))
+r[#r]=u(a,e,n,e,p,true)
+end
+table.insert(r,'placeholder')
+local e=o[e]..'['..(o[a]or l[a]or v(a))..']'
+r[#r]=e..s..'='..s..(o[h]or u(h,nil,n,e))
+end
+else
+table.insert(w,u(h,a,n,c,o[e],y,i+1))
+end
+end
+local t=string.rep(n or'',i)
+local o=n and'{\n'..t..n or'{'
+local a=table.concat(w,','..(n and'\n'..t..n or s))
+local t=n and"\n"..t..'}'or'}'
+return(k and k(h,o,a,t)or h..o..a..t)..d(e,i)
+elseif g[y]then
+o[e]=c or m
+return h..x(e,i)
+elseif y=='function'and not f then
+o[e]=c or m
+local o,a=pcall(string.dump,e)
+local t=o and((t.nocode and"function() --[[..skipped..]] end"or
+"loadstring("..w(a)..",'@serialized')")..d(e,i))
+return h..(t or x(e,i))
+else return h..w(e)end
+end
+local e=b and"\n"or";"..s
+local t=u(z,y,b)
+local a=#r>1 and table.concat(r,e)..e or''
+return not y and t or"do local "..t..e..a.."return "..y..e.."end"
+end
+local function a(e,t)if t then for t,a in pairs(t)do e[t]=(e[t]==nil and a or e[t])end end;return e;end
+return{_NAME=z,_COPYRIGHT=E,_DESCRIPTION=_,_VERSION=T,serialize=y,
+dump=function(t,e)return y(t,a({name='_',compact=true,sparse=true},e))end,
+line=function(e,t)return y(e,a({sortkeys=true,comment=true},t))end,
+block=function(t,e)return y(t,a({indent='  ',sortkeys=true,comment=true},e))end}]===================],"CoolisOS/bin/utils/tab_read.lua",[===================[local s={}
+do
+local n,h,e,r
+local function d(n,e,t)
+local i={}
+local a
+local o=0
+e=e or 1
+t=t or#n
+for e=e,t do
+local e=n[e]
+if not e then break
+elseif e==''then
+o=o+1
+else
+table.insert(i,a)
+a=e
+end
+end
+table.insert(i,a)
+return table.concat(i,'.',1,t-e+1-o)
+end
+function h(a,e)
+local t=type(e)=='string'and n(e)or e
+local e=table.remove(t)
+if not e then return a end
+local t=r(a,t)
+return t and t[e]
+end
+function n(a)
+local i={}
+local o,t,e=1
+repeat
+t=a:find(".",o,true)or#a+1
+e=a:sub(o,t-1)
+e=tonumber(e)or e
+if e and e~=""then table.insert(i,e)end
+o=t+1
+until t==#a+1
+return i
+end
+function r(a,e,o)
+e=type(e)=="string"and n(e)or e
+for n,i in ipairs(e)do
+local t=a[i]
+if type(t)~="table"then
+if not o or(o=="noowr"and t~=nil)then return nil,d(e,1,n)
+else t={}a[i]=t end
+end
+a=t
+end
+return a
+end
+s.get=h
+end
+local function r(e,a)
+a=a or _G
+e=e or""
+e=e:match("([%w_][%w_%.%:]*)$")or""
+local e,i,t=e:match("(.-)([%.%:]?)([^%.%:]*)$")
+local n=s.get(a,e)
+local s=i==":"
+local a={}
+local function o(e,i)
+if type(e)~='table'then return end
+for a,e in pairs(e)do
+local o=type(e)
+if type(a)=='string'and a:match("^"..t)and(not s or o=='function'or(o=='table'and getmetatable(e)and getmetatable(e).__call))then i[a]=true end
+end
+end
+o(n,a)
+if i==":"or i=="."then
+local e=getmetatable(n)
+if e then
+local t,i=e.__index,e.__newindex
+o(t,a)
+if i~=t then o(i,a)end
+if e~=t and e~=i then o(e,a)end
+end
+end
+local e={}
+for t,a in pairs(a)do table.insert(e,t)end
+table.sort(e)
+if t==e[1]then
+local t=n[t]
+local a=type(t)
+if a=='function'then e[1]=e[1].."("
+elseif getmetatable(t)and getmetatable(t).__index then
+e[1]=e[1]..":"
+elseif a=='table'then e[1]=e[1].."."
+end
+end
+t=t or''
+return e,t:len()
+end
+local function m(t,e)
+if t:sub(e,e)==' 'then
+return''
+end
+local t=t:reverse()
+sLeft=t:match('[^_]*',t:len()-e):reverse()
+return sLeft
+end
+local function i(e)
+return(e:gsub('%%','%%%%')
+:gsub('%^','%%%^')
+:gsub('%$','%%%$')
+:gsub('%(','%%%(')
+:gsub('%)','%%%)')
+:gsub('%.','%%%.')
+:gsub('%[','%%%[')
+:gsub('%]','%%%]')
+:gsub('%*','%%%*')
+:gsub('%+','%%%+')
+:gsub('%-','%%%-')
+:gsub('%?','%%%?'))
+end
+function get_fs_matches(t)
+local e={}
+local t=t:match([[[^%[%]%'%"]+$]])or""
+local a,o,t=t:match("^(.-)([/\\]?)([^/\\]*)$")
+local o=_G.shell and _G.shell.resolve(a)or a
+if fs.isDir(o)then
+local a,o=pcall(fs.list,o)
+if a then
+local a=nil
+local t="^"..i(t)..'.*'
+for i,o in ipairs(o)do
+a=string.match(o,t)
+if a then
+table.insert(e,a)
+end
+end
+end
+end
+table.sort(e)
+if t==e[1]then
+local a=e[1]
+if fs.isDir(o..'/'..t)then
+e[1]=e[1]..'/'
+end
+end
+return e,t:len()
+end
+local function c(o,s,i,e)
+local l=e==nil or e==true
+term.setCursorBlink(true)
+local t=""
+local n=nil
+local e=0
+if o then
+o=string.sub(o,1,1)
+end
+local h=0
+local a={n=0}
+function reset_matches()
+a={n=0}
+end
+function get_matches(e)
+if l then
+return get_fs_matches(e)
+else
+return r(e,i)
+end
+end
+local u,i=term.getSize()
+local r,d=term.getCursorPos()
+local function i(i)
+local a=0
+if r+e>=u then
+a=(r+e)-u
+end
+term.setCursorPos(r,d)
+local o=i or o
+if o then
+term.write(string.rep(o,string.len(t)-a))
+else
+term.write(string.sub(t,a+1))
+end
+term.setCursorPos(r+e-a,d)
+end
+while true do
+local r,o=os.pullEvent()
+if r=="char"then
+reset_matches()
+t=string.sub(t,1,e)..o..string.sub(t,e+1)
+e=e+1
+i()
+elseif r=="key"then
+if not(o==keys.tab)then
+reset_matches()
+end
+if not(o==keys.rightShift)then
+h=0
+end
+if o==keys.enter then
+break
+elseif o==keys.tab then
+if a[1]then
+local o=string.len(a[a.n])
+a.n=(a.n)%#a+1
+if string.len(a[a.n])<o then i(" ")end
+t=string.sub(t,1,e-o)..a[a.n]..string.sub(t,e+1)
+e=e-o+a[a.n]:len()
+i()
+else
+a,len=get_matches(m(t,e))
+a.n=0
+if#a>0 then
+a.n=1
+local o=len
+t=string.sub(t,1,e-o)..a[a.n]..string.sub(t,e+1)
+e=e-o+a[a.n]:len()
+i()
+end
+if#a==1 then reset_matches()end
+end
+elseif o==keys.rightShift then
+h=(h+1)%2
+if h==0 then
+l=not l
+end
+reset_matches()
+elseif o==keys.left then
+if e>0 then
+e=e-1
+i()
+end
+elseif o==keys.right then
+if e<string.len(t)then
+e=e+1
+i()
+end
+elseif o==keys.up or o==keys.down then
+if s then
+i(" ");
+if o==keys.up then
+if n==nil then
+if#s>0 then
+n=#s
+end
+elseif n>1 then
+n=n-1
+end
+else
+if n==#s then
+n=nil
+elseif n~=nil then
+n=n+1
+end
+end
+if n then
+t=s[n]
+e=string.len(t)
+else
+t=""
+e=0
+end
+i()
+end
+elseif o==keys.backspace then
+if e>0 then
+i(" ");
+t=string.sub(t,1,e-1)..string.sub(t,e+1)
+e=e-1
+i()
+end
+elseif o==keys.home then
+e=0
+i()
+elseif o==keys.delete then
+if e<string.len(t)then
+i(" ");
+t=string.sub(t,1,e)..string.sub(t,e+2)
+i()
+end
+elseif o==keys["end"]then
+e=string.len(t)
+i()
+end
+end
+end
+term.setCursorBlink(false)
+term.setCursorPos(u+1,d)
+print()
+return t
+end
+local function e()
+a=setmetatable({},{__index={b=1,c=function()end},__newindex={},__tostring=function()return'aaa'end})
+repeat
+c(nil,nil,getfenv(),false)
+print()
+until false
+end
+return c
+]===================],"CoolisOS/bin/utils/turtle.lua",[===================[if not _G.turtle then error('not a turtle',2)end
+if turtle._old then
+turtle=util.shcopy(turtle._old)
+else
+turtle._old=util.shcopy(turtle)
+end
+local e=log
+local d=function(...)return e('turtle',...)end
+include'kernel.class'
+local a=require'utils.Vec3'
+local e=require'kernel.util'
+local s=require'kernel.class.Var'
+local i
+local t,e
+local o='ect/turtle'
+if not fs.exists(o)then fs.makeDir(o)end
+local n=require'utils.serpent'.dump
+local n=s(fs.combine(o,'pos-dir.var'))
+local o=s(fs.combine(o,'mode.var'))
+local function s(a,t)
+for e,o in pairs(t)do
+if a[e]==nil then
+a[e]=t[e]
+end
+end
+end
+s(o,{
+dig=true,
+attack=true,
+count=20,
+delay=.5,
+gps=false,
+})
+local function s()
+n.pos=t
+n.dir=e
+end
+local function l()
+t,e=a(n.pos),a(n.dir)
+end
+function set(a,o)
+t,e=(a or t):clone(),(o or e):clone()
+s()
+end
+function get()return t:clone(),e:clone()end
+local function r(e)
+return(e==nil or e==0)and 0 or(e>0 and 1 or-1)
+end
+function ensureFuel()
+if i.ensureFuel then i.ensureFuel()end
+end
+moves={}
+do
+local n={
+up={
+vec=function()return a(0,1,0)end,
+at=function(e)
+e.y=e.y+1
+end,
+raw_name="up",
+attack=turtle.attackUp,
+suck=turtle.suckUp,dig=turtle.digUp,raw_move=turtle.up,detect=turtle.detectUp,place=turtle.placeUp,compare=turtle.compareUp,drop=turtle.dropUp,},
+forward={
+vec=function()return a(e.x,0,e.z)end,
+at=function(e,t)
+e.x=e.x+t.x
+e.z=e.z+t.z
+end,
+attack=turtle.attack,
+raw_name="forward",suck=turtle.suck,dig=turtle.dig,raw_move=turtle.forward,detect=turtle.detect,place=turtle.place,compare=turtle.compare,drop=turtle.drop,},
+down={
+vec=function()return a(0,-1,0)end,
+at=function(e)
+e.y=e.y-1
+end,
+attack=turtle.attackDown,
+raw_name="down",suck=turtle.suckDown,dig=turtle.digDown,raw_move=turtle.down,detect=turtle.detectDown,place=turtle.placeDown,compare=turtle.compareDown,drop=turtle.dropDown,},
+back={
+vec=function()return a(-e.x,0,-e.z)end,
+at=function(e,t)
+e.x=e.x-t.x
+e.z=e.z-t.z
+end,
+raw_name='back',raw_move=turtle.back},
+}
+local o={
+left={
+vec=function()return a(e.z,0,-e.x)end,
+raw_name='turnLeft',raw_move=turtle.turnLeft,at=function(t,e)e.x,e.z=e.z,-e.x end},
+right={
+vec=function()return a(-e.z,0,e.x)end,
+raw_name='turnRight',raw_move=turtle.turnRight,at=function(t,e)e.x,e.z=-e.z,e.x end},
+}
+local a={
+up='down',
+forward='back',
+right='left',
+}
+for t,e in pairs(a)do a[e]=t end
+local function i(a,o,i,n)
+if n then ensureFuel()end
+a(t,e)
+s()
+local a=o()
+if not a then i(t,e)s()end
+return a
+end
+for t,e in pairs(n)do
+local a={e.at,e.raw_move,n[a[t]].at,true}
+turtle[e.raw_name]=function()return i(unpack(a))end
+e.move=turtle[e.raw_name]
+moves[t]=e
+end
+for t,e in pairs(o)do
+local a={e.at,e.raw_move,o[a[t]].at}
+turtle[e.raw_name]=function()return i(unpack(a))end
+e.move=turtle[e.raw_name]
+moves[t]=e
+end
+for t,e in pairs(moves)do
+setmetatable(e,
+{__call=function(t,...)
+return e.move(...)
+end,
+})
+end
+moves.top=moves.up
+moves.bottom=moves.down
+moves.front=moves.forward
+end
+for a,t in pairs(moves)do
+local e=(getfenv())
+e[a]=t
+end
+compass={
+{name='north',n=0,vec=function()return a(0,0,-1)end},
+{name='east',n=1,vec=function()return a(1,0,0)end},
+{name='south',n=2,vec=function()return a(0,0,1)end},
+{name='west',n=3,vec=function()return a(-1,0,0)end},
+}
+for t,e in pairs(compass)do compass[e.name]=e end
+function getFacing(t)
+local o
+if t==nil then o=e
+elseif classof(t)==a then o=t
+elseif type(t)=='string'then o=moves[t].vec()
+else error()end
+for t,e in ipairs(compass)do
+if o==e.vec()then return e.name end
+end
+end
+function getChunk(e)
+e=e or t
+return math.floor(e.x/16),math.floor(e.z/16)
+end
+function getChunkPosition(e)
+e=e or t
+return e.x%16,e.z%16
+end
+local function h(...)
+if classof(...)==a then
+return...
+elseif type(...)=='string'then
+if moves[...]then
+return moves[...].vec()
+elseif compass[...]then
+return compass[...].vec()
+end
+else return a(...)end
+end
+local n=false
+function clear(t)
+t=type(t)=='string'and moves[t]or t
+local i=o.count
+local s=o.delay
+local a=0
+local e=0
+while(t.detect())and(e<i)do
+if(e==0)then
+if not o.dig then
+return false,'dig'
+end
+end
+a=(t.dig()and 1 or 0)+e
+e=e+1
+sleep(s)
+end
+if a~=0 then n=true end
+return(e~=i),e,a
+end
+function force(e)
+e=type(e)=='string'and moves[e]or e
+local a
+if not n then
+a=e.move()
+if a then return true,0,0 end
+end
+local s=o.count
+local h=o.delay
+local i=0
+local t=0
+while(not a)and(t<s)do
+if e.detect()then
+if(t==0)then
+if not o.dig then
+return false,'dig'
+end
+end
+i=(e.dig()and 1 or 0)+t
+sleep(h)
+else
+if not o.attack then
+return false,'attack'
+end
+e.attack()
+end
+a=e.move()
+t=t+1
+end
+if i~=0 then n=true end
+return a,t,i
+end
+function advance(e,t)
+e=type(e)=='string'and moves[e]or e
+t=t or 1
+for t=1,t do
+force(e)
+end
+end
+function turn(...)
+local t=h(...)
+local a,t=r(t.x),r(t.z)
+if a==e.x and t==e.z then
+return
+elseif(a==-e.x and a~=0)or(t==-e.z and t~=0)then
+left()
+left()
+elseif a~=0 then
+if a==-e.z then right()else left()end
+elseif t~=0 then
+if t==e.x then right()else left()end
+end
+end
+function goto(...)
+local e=h(...)
+if e.y>t.y then
+advance(up,e.y-t.y)
+elseif e.y<t.y then
+advance(down,t.y-e.y)
+end
+if e.x~=t.x then
+turn({x=e.x-t.x})
+advance(forward,math.abs(e.x-t.x))
+end
+if e.z~=t.z then
+turn({z=e.z-t.z})
+advance(forward,math.abs(e.z-t.z))
+end
+end
+function move(...)
+local e=h(...)
+return goto(e+t)
+end
+function debug()
+return({lastMoveNeededDig=n,pos_dir={get()}})
+end
+local function n()
+l()
+t,e=(t or a()),(e or compass.south.vec())
+s()
+if o.gps then
+local a,e,t=pcall(getGps)
+if a then set(e,t)
+else d('WARNING','Could not use gps:',e)end
+end
+end
+function getGps()
+rednet.open'right'
+local e,t,o=gps.locate(5)
+if e then
+gps_pos=a(e,t,o)
+local e=(get())
+for o,t in ipairs(compass)do
+if goto(t.vec()+e)then
+local e,o,t=gps.locate(5)
+if e then
+local t=a(e,o,t)
+local e=t-gps_pos
+if e~=a(0,0,0)then
+return true,t,e
+end
+end
+end
+end
+error'blocked'
+else
+error'no gps signal'
+end
+end
+n()
+i={
+debug=debug,
+set=set,
+get=get,
+moves=moves,
+front=moves.forward,
+bottom=moves.down,
+top=moves.up,
+clear=clear,
+force=force,
+advance=advance,
+mode=o,
+getFacing=getFacing,
+getChunk=getChunk,
+getChunkPos=getChunkPos,
+compass=compass,
+getGps=getGps,
+turn=turn,
+move=move,
+goto=goto,
+}
+for t,e in pairs(moves)do i[t]=e end
+i.api=i
+return i]===================],"CoolisOS/bin/utils/Vec3.lua",[===================[include'kernel.class'
+class.Vec3()
+function Vec3:__init(e,t,a)
+if type(e)=='table'then
+self.x=e.x or e[1]or 0
+self.y=e.y or e[2]or 0
+self.z=e.z or e[3]or 0
+else
+self.x=e or 0
+self.y=t or 0
+self.z=a or 0
+end
+end
+local e=Vec3
+local t=Vec3
+local e=function(e)return classof(e)==Vec3 end
+local a=ofType
+local i={
+add=function(e,t)
+e.x=e.x+t.x
+e.y=e.y+t.y
+e.z=e.z+t.z
+return e
+end,
+scalarAdd=function(e,t)
+e.x=e.x+t
+e.y=e.y+t
+e.z=e.z+t
+return e
+end,
+subtract=function(e,t)
+e.x=e.x-t.x
+e.y=e.y-t.y
+e.z=e.z-t.z
+return e
+end,
+scalarSubtract=function(e,t)
+return e:scalarAdd(-t)
+end,
+eldot=function(e,t)
+e.x=e.x*t.x
+e.y=e.y*t.y
+e.z=e.z*t.z
+return e
+end,
+scalarMultiply=function(e,t)
+e.x=e.x*t
+e.y=e.y*t
+e.z=e.z*t
+return e
+end,
+divide=function(a,e)
+return t(
+a.x/e.x,
+a.y/e.y,
+a.z/e.z
+)
+end,
+scalarDivide=function(a,e)
+return t(
+a.x/e,
+a.y/e,
+a.z/e
+)
+end,
+length=function(e)
+return math.sqrt(
+e.x*e.x
++e.y*e.y
++e.z*e.z
+)
+end,
+lengthSq=function(e)
+return(
+e.x*e.x
++e.y*e.y
++e.z*e.z
+)
+end,
+distance=function(e,t)
+return math.sqrt(
+math.pow(t.x-e.x,2)
++math.pow(t.y-e.y,2)
++math.pow(t.z-e.z,2)
+)
+end,
+distanceSq=function(e,t)
+return(
+math.pow(t.x-e.x,2)
++math.pow(t.y-e.y,2)
++math.pow(t.z-e.z,2)
+)
+end,
+normalize=function(e)
+return e:scalarDivide(e:length())
+end,
+dot=function(t,e)
+return(
+t.x*e.x
++t.y*e.y
++t.z*e.z
+)
+end,
+cross=function(e,a)
+return t(
+e.y*a.z-e.z*a.y,
+e.z*a.x-e.x*a.z,
+e.x*a.y-e.y*a.x
+)
+end,
+containedWithin=function(e,t,a)
+return(
+e.x>=t.x and e.x<=a.x
+and e.y>=t.y and e.y<=a.y
+and e.z>=t.z and e.z<=a.z
+)
+end,
+clampX=function(e,o,a)
+return t(
+math.max(o,math.min(a,e.x)),
+e.y,
+e.z
+)
+end,
+clampY=function(e,o,a)
+return t(
+e.x,
+math.max(o,math.min(a,e.y)),
+e.z
+)
+end,
+clampZ=function(e,o,a)
+return t(
+e.x,
+e.y,
+math.max(o,math.min(a,e.z))
+)
+end,
+floor=function(e)
+return t(
+math.floor(e.x),
+math.floor(e.y),
+math.floor(e.z)
+)
+end,
+ceil=function(e)
+return t(
+math.ceil(e.x),
+math.ceil(e.y),
+math.ceil(e.z)
+)
+end,
+round=function(e)
+return t(
+math.floor(e.x+.5),
+math.floor(e.y+.5),
+math.floor(e.z+.5)
+)
+end,
+absolute=function(e)
+return t(
+math.abs(e.x),
+math.abs(e.y),
+math.abs(e.z)
+)
+end,
+isCollinearWith=function(e,t)
+if e.x==0 and e.y==0 and e.z==0 then
+return true
+end
+local a,i,o=t.x,t.y,t.z
+if a==0 and i==0 and o==0 then
+return true
+end
+if(e.x==0)~=(a==0)then return false end
+if(e.y==0)~=(i==0)then return false end
+if(e.z==0)~=(o==0)then return false end
+local a=a/e.x
+if a==a then
+return t:equals(e:scalarMultiply(a))
+end
+local a=i/e.y
+if a==a then
+return t:equals(e:scalarMultiply(a))
+end
+local a=o/e.z
+if a==a then
+return t:equals(e:scalarMultiply(a))
+end
+end,
+getIntermediateWithX=function(e,a,s)
+local o=a.x-e.x
+local i=a.y-e.y
+local n=a.z-e.z
+if o*o<10000000116860974e-23 then
+return nil
+else
+local a=(s-e.x)/o
+return(
+(a>=0 and a<=1)
+and t(
+e.x+o*a,
+e.y+i*a,
+e.z+n*a
+)
+or nil
+)
+end
+end,
+getIntermediateWithY=function(e,a,s)
+local i=a.x-e.x
+local o=a.y-e.y
+local n=a.z-e.z
+if o*o<10000000116860974e-23 then
+return nil
+else
+local a=(s-e.y)/o
+return(
+(a>=0 and a<=1)
+and t(
+e.x+i*a,
+e.y+o*a,
+e.z+n*a
+)
+or nil
+)
+end
+end,
+getIntermediateWithZ=function(e,a,s)
+local n=a.x-e.x
+local i=a.y-e.y
+local o=a.z-e.z
+if o*o<10000000116860974e-23 then
+return nil
+else
+local a=(s-e.z)/o
+return(
+(a>=0 and a<=1)
+and t(
+e.x+n*a,
+e.y+i*a,
+e.z+o*a
+)
+or nil
+)
+end
+end,
+rotateAroundX=function(e,a)
+local o,a=math.cos(a),math.sin(a)
+return t(
+e.x,
+e.y*o+e.z*a,
+e.z*o-e.y*a
+)
+end,
+rotateAroundY=function(e,a)
+local o,a=math.cos(a),math.sin(a)
+return t(
+e.x*o+e.z*a,
+e.y,
+e.z*o-e.x*a
+)
+end,
+rotateAroundZ=function(e,a)
+local a,o=math.cos(a),math.sin(a)
+return t(
+e.x*a+e.y*o,
+e.y*a-e.x*o,
+e.z
+)
+end,
+clone=function(e)
+return Vec3(e)
+end,
+equals=function(t,a)
+if not e(t)or not e(a)then return false end
+return(
+a.x==t.x
+and a.y==t.y
+and a.z==t.z
+)
+end,
+tostring=function(e)
+return"("..e.x..", "..e.y..", "..e.z..")"
+end,
+getMinimum=function(e,a)
+return t(
+math.min(e.x,a.x),
+math.min(e.y,a.y),
+math.min(e.z,a.z)
+)
+end,
+getMidpoint=function(a,e)
+return t(
+(a.x+e.x)/2,
+(a.y+e.y)/2,
+(a.z+e.z)/2
+)
+end,
+__serialize=function(e)
+return{e.x,e.y,e.z}
+end
+}
+local e={
+__tostring=i.tostring,
+__unm=function(e)return e:scalarMultiply(-1)end,
+__add=function(t,o)
+if type(o)=="number"and e(t)then
+return t:clone():scalarAdd(o)
+elseif type(t)=="number"and e(o)then
+return o:clone():scalarAdd(t)
+elseif e(t)and e(o)then
+return t:clone():add(o)
+else
+error("Attempt to perform vector addition on <"..a(t).."> and <"..a(o)..">")
+end
+end,
+__sub=function(o,t)
+if type(t)=="number"and e(o)then
+return o:clone():scalarSubtract(t)
+elseif type(o)=="number"and e(t)then
+return t:clone():scalarSubtract(o)
+elseif e(o)and e(t)then
+return o:clone():subtract(t)
+else
+error("Attempt to perform vector subtraction on <"..a(o).."> and <"..a(t)..">")
+end
+end,
+__mul=function(o,t)
+if type(t)=="number"and e(o)then
+return o:scalarMultiply(t)
+elseif type(o)=="number"and e(t)then
+return t:scalarMultiply(o)
+elseif e(o)and e(t)then
+return o:dot(t)
+else
+error("Attempt to perform vector multiplication on <"..a(o).."> and <"..a(t)..">")
+end
+end,
+__div=function(t,o)
+if type(o)=="number"and e(t)then
+return t:scalarDivide(o)
+elseif type(t)=="number"and e(o)then
+return o:scalarDivide(t)
+elseif e(t)and e(o)then
+return t:divide(o)
+else
+error("Attempt to perform vector division on <"..a(t).."> and <"..a(o)..">")
+end
+end,
+__eq=i.equals,
+__pow=i.cross,
+}
+util.shcopy(i,Vec3)
+util.shcopy(e,Vec3)
+return Vec3]===================],"CoolisOS/bin/utils/pl",true,"CoolisOS/bin/utils/pl/List.lua",[===================[local n,r,c,m=table.insert,table.remove,table.concat,table.sort
+local s,u,i,v,y,p,e=setmetatable,getmetatable,type,tostring,assert,string,next
+local e=io.write
+local e=require'tablex'
+local f,w,b,k,z,_=e.filter,e.imap,e.imap2,e.reduce,e.transform,e.removevalues
+local d=e
+local g=d.sub
+local a=require'utils'
+local x,T,e,t,l=a.array_tostring,a.split,a.is_type,a.assert_arg,a.function_arg
+local E=d._normalize_slice
+local j=a.stdmt.MultiMap
+local e=a.stdmt.List
+e.__index=e
+e._class=e
+local h
+s(e,{
+__call=function(a,t)
+return e.new(t)
+end,
+})
+local function o(a,t)
+local e=e
+if t then
+e=u(t)
+end
+return s(a,e)
+end
+local function q(t)
+return u(t)==e
+end
+local function u(e)
+return i(e)=='table'and not q(e)and#e>0
+end
+function e:_init(e)
+if e then
+for e in h(e)do
+n(self,e)
+end
+end
+end
+function e.new(a)
+local t
+if not u(a)then
+t={}
+e._init(t,a)
+else
+t=a
+end
+o(t)
+return t
+end
+function e:clone()
+local t=o({},self)
+e._init(t,self)
+return t
+end
+function e.default_map_with(e)
+return function(a,t)
+local e=e[t]
+if e then
+return function(t,...)
+return t:map(e,...)
+end
+else
+error("method not found: "..t,2)
+end
+end
+end
+function e:append(t)
+n(self,t)
+return self
+end
+e.push=n
+function e:extend(e)
+t(1,e,'table')
+for t=1,#e do n(self,e[t])end
+return self
+end
+function e:insert(e,a)
+t(1,e,'number')
+n(self,e,a)
+return self
+end
+function e:put(e)
+return self:insert(1,e)
+end
+function e:remove(e)
+t(1,e,'number')
+r(self,e)
+return self
+end
+function e:remove_value(t)
+for e=1,#self do
+if self[e]==t then r(self,e)return self end
+end
+return self
+end
+function e:pop(a)
+if not a then a=#self end
+t(1,a,'number')
+return r(self,a)
+end
+e.get=e.pop
+local d=d.find
+e.index=d
+function e:contains(e)
+return d(self,e)and true or false
+end
+function e:count(a)
+local e=0
+for t=1,#self do
+if self[t]==a then e=e+1 end
+end
+return e
+end
+function e:sort(e)
+if e then e=l(1,e)end
+m(self,e)
+return self
+end
+function e:sorted(t)
+return e(self):sort(t)
+end
+function e:reverse()
+local e=self
+local a=#e
+local t=a/2
+for t=1,t do
+local a=a-t+1
+e[t],e[a]=e[a],e[t]
+end
+return self
+end
+function e:minmax()
+local a,t=1e70,-1e70
+for e=1,#self do
+local e=self[e]
+if e<a then a=e end
+if e>t then t=e end
+end
+return a,t
+end
+function e:slice(t,e)
+return g(self,t,e)
+end
+function e:clear()
+for e=1,#self do r(self)end
+return self
+end
+local r=1e-10
+function e.range(s,o,i)
+if not o then
+o=s
+s=1
+end
+if i then
+t(3,i,'number')
+if not a.is_integer(i)then o=o+r end
+else
+i=1
+end
+t(1,s,'number')
+t(2,o,'number')
+local e=e.new()
+for t=s,o,i do n(e,t)end
+return e
+end
+function e:len()
+return#self
+end
+function e:chop(e,t)
+return _(self,e,t)
+end
+function e:splice(e,a)
+t(1,e,'number')
+e=e-1
+local t=1
+for a in h(a)do
+n(self,t+e,a)
+t=t+1
+end
+return self
+end
+function e:slice_assign(e,a,o)
+t(1,e,'number')
+t(1,a,'number')
+e,a=E(self,e,a)
+if a>=e then self:chop(e,a)end
+self:splice(e,o)
+return self
+end
+function e:__concat(a)
+t(1,a,'table')
+local e=self:clone()
+e:extend(a)
+return e
+end
+function e:__eq(e)
+if#self~=#e then return false end
+for t=1,#self do
+if self[t]~=e[t]then return false end
+end
+return true
+end
+function e:join(a)
+a=a or''
+t(1,a,'string')
+return c(x(self),a)
+end
+e.concat=c
+local function a(t)
+local e=v(t)
+if i(t)=='string'then
+e='"'..e..'"'
+end
+return e
+end
+function e:__tostring()
+return'{'..self:join(',',a)..'}'
+end
+local a={}
+function a:__index(e)
+return function(t,...)
+return self.list:foreachm(e,...)
+end
+end
+function e:foreach(e,...)
+if e==nil then
+return s({list=self},a)
+end
+e=l(1,e)
+for t=1,#self do
+e(self[t],...)
+end
+end
+function e:foreachm(t,...)
+for e=1,#self do
+local e=self[e]
+local t=y(e[t],"method not found on object")
+t(e,...)
+end
+end
+function e:filter(t,e)
+return o(f(self,t,e),self)
+end
+function e.split(e,a)
+t(1,e,'string')
+return o(T(e,a))
+end
+local t={}
+function t:__index(e)
+return function(t,...)
+return self.list:mapm(e,...)
+end
+end
+function e:map(e,...)
+if e==nil then
+return s({list=self},t)
+end
+return o(w(e,self,...),self)
+end
+function e:transform(e,...)
+z(e,self,...)
+return self
+end
+function e:map2(t,e,...)
+return o(b(t,self,e,...),self)
+end
+function e:mapm(t,...)
+local a={}
+local e=self
+for o=1,#e do
+local e=e[o]
+local n=e[t]
+if not n then error(i(e).." does not have method "..t,2)end
+a[o]=n(e,...)
+end
+return o(a,self)
+end
+function e:reduce(e)
+return k(e,self)
+end
+function e:partition(t,...)
+t=l(1,t)
+local a={}
+for o=1,#self do
+local o=self[o]
+local t=t(o,...)
+if t==nil then t='<nil>'end
+if not a[t]then a[t]=e()end
+a[t]:append(o)
+end
+return s(a,j)
+end
+function e:iter()
+return h(self)
+end
+function e.iterate(e)
+if i(e)=='string'then
+local t=0
+local a=#e
+local o=p.sub
+return function()
+t=t+1
+if t>a then return nil
+else
+return o(e,t,t)
+end
+end
+elseif i(e)=='table'then
+local t=0
+local a=#e
+return function()
+t=t+1
+if t>a then return nil
+else
+return e[t]
+end
+end
+elseif i(e)=='function'then
+return e
+elseif i(e)=='userdata'and io.type(e)=='file'then
+return e:lines()
+end
+end
+h=e.iterate
+return e
+]===================],"CoolisOS/bin/utils/pl/tablex.lua",[===================[local h=require'utils'
+local u,d,e=getmetatable,setmetatable,require
+local b,w=table.insert,table.remove
+local y,e=math.min,math.max
+local a,r,j,e,q,g=pairs,type,unpack,next,select,tostring
+local i=h.function_arg
+local k=h.stdmt.Set
+local s=h.stdmt.List
+local l=h.stdmt.Map
+local p=h.assert_arg
+local e={}
+local function n(a,t,e)
+local e=u(t)or e
+return d(a,e)
+end
+local function f(e)
+return d(e,s)
+end
+local function c(e)
+if r(e)=='table'then return true end
+return u(e)
+end
+local function m(e,t)
+error(('argument %d is not %s'):format(e,t),3)
+end
+local function t(t,e)
+local e=c(e)
+if e==true then return end
+if not(e and e.__len and e.__index)then
+m(t,"indexable")
+end
+end
+local function o(t,e)
+local e=c(e)
+if e==true then return end
+if not(e and e.__pairs)then
+m(t,"iterable")
+end
+end
+local function v(t,e)
+local e=c(e)
+if e==true then return end
+if not(e and e.__newindex)then
+m(t,"writeable")
+end
+end
+function e.update(e,t)
+v(1,e)
+o(2,t)
+for t,a in a(t)do
+e[t]=a
+end
+return e
+end
+function e.size(t)
+o(1,t)
+local e=0
+for t in a(t)do e=e+1 end
+return e
+end
+function e.copy(e)
+o(1,e)
+local t={}
+for e,a in a(e)do
+t[e]=a
+end
+return t
+end
+function e.deepcopy(t)
+if r(t)~='table'then return t end
+o(1,t)
+local i=u(t)
+local o={}
+for a,t in a(t)do
+if r(t)=='table'then
+t=e.deepcopy(t)
+end
+o[a]=t
+end
+d(o,i)
+return o
+end
+local m,c=math.abs
+function e.deepcompare(e,t,n,o)
+local i=r(e)
+local s=r(t)
+if i~=s then return false end
+if i~='table'then
+if i=='number'and o then return m(e-t)<o end
+return e==t
+end
+local i=u(e)
+if not n and i and i.__eq then return e==t end
+for e in a(e)do
+if t[e]==nil then return false end
+end
+for t in a(t)do
+if e[t]==nil then return false end
+end
+for e,a in a(e)do
+local e=t[e]
+if not c(a,e,n,o)then return false end
+end
+return true
+end
+c=e.deepcompare
+function e.compare(e,a,o)
+t(1,e)
+t(2,a)
+if#e~=#a then return false end
+o=i(3,o)
+for t=1,#e do
+if not o(e[t],a[t])then return false end
+end
+return true
+end
+function e.compare_no_order(o,e,a)
+t(1,o)
+t(2,e)
+if a then a=i(3,a)end
+if#o~=#e then return false end
+local s={}
+for t=1,#o do
+local n=o[t]
+local i
+for t=1,#e do if not s[t]then
+local o
+if a then o=a(n,e[t])else o=n==e[t]end
+if o then
+i=t
+break
+end
+end end
+if not i then return false end
+s[i]=true
+end
+return true
+end
+function e.find(a,o,e)
+t(1,a)
+e=e or 1
+if e<0 then e=#a+e+1 end
+for e=e,#a do
+if a[e]==o then return e end
+end
+return nil
+end
+function e.rfind(a,o,e)
+t(1,a)
+e=e or#a
+if e<0 then e=#a+e+1 end
+for e=e,1,-1 do
+if a[e]==o then return e end
+end
+return nil
+end
+function e.find_if(t,e,n)
+o(1,t)
+e=i(2,e)
+for t,a in a(t)do
+local e=e(a,n)
+if e then return t,e end
+end
+return nil
+end
+function e.index_by(a,e)
+t(1,a)
+t(2,e)
+local t={}
+for o=1,#e do
+t[o]=a[e[o]]
+end
+return n(t,a,s)
+end
+function e.map(t,e,...)
+o(1,e)
+t=i(1,t)
+local o={}
+for e,a in a(e)do
+o[e]=t(a,...)
+end
+return n(o,e)
+end
+function e.imap(a,e,...)
+t(1,e)
+a=i(1,a)
+local o={}
+for t=1,#e do
+o[t]=a(e[t],...)or false
+end
+return n(o,e,s)
+end
+function e.map_named_method(a,e,...)
+h.assert_string(1,a)
+t(2,e)
+local o={}
+for t=1,#e do
+local e=e[t]
+local a=e[a]
+o[t]=a(e,...)
+end
+return n(o,e,s)
+end
+function e.transform(t,e,...)
+o(1,e)
+t=i(1,t)
+for o,a in a(e)do
+e[a]=t(a,...)
+end
+end
+function e.range(e,t,o)
+if e==t then return{e}
+elseif e>t then return{}
+end
+local i={}
+local a=1
+if not o then
+if t>e then o=t>e and 1 or-1 end
+end
+for e=e,t,o do i[a]=e;a=a+1 end
+return i
+end
+function e.map2(t,e,h,...)
+o(1,e)
+o(2,h)
+t=i(1,t)
+local o={}
+for e,a in a(e)do
+o[e]=t(a,h[e],...)
+end
+return n(o,e,s)
+end
+function e.imap2(e,a,o,...)
+t(2,a)
+t(3,o)
+e=i(1,e)
+local i,t={},math.min(#a,#o)
+for t=1,t do
+i[t]=e(a[t],o[t],...)
+end
+return i
+end
+function e.reduce(a,e)
+t(2,e)
+a=i(1,a)
+local o=#e
+local t=e[1]
+for o=2,o do
+t=a(t,e[o])
+end
+return t
+end
+function e.foreach(t,e,...)
+o(1,t)
+e=i(2,e)
+for t,a in a(t)do
+e(a,t,...)
+end
+end
+function e.foreachi(e,a,...)
+t(1,e)
+a=i(2,a)
+for t=1,#e do
+a(e[t],t,...)
+end
+end
+function e.mapn(a,...)
+a=i(1,a)
+local t={}
+local e={...}
+local o=1e40
+for t=1,#e do
+o=y(o,#(e[t]))
+end
+for n=1,o do
+local i,o={},1
+for a=1,#e do
+i[o]=e[a][n]
+o=o+1
+end
+t[#t+1]=a(j(i))
+end
+return t
+end
+function e.pairmap(t,n,...)
+o(1,n)
+t=i(1,t)
+local e={}
+for a,o in a(n)do
+local a,t=t(a,o,...)
+if t then
+e[t]=a
+else
+e[#e+1]=a
+end
+end
+return e
+end
+local function u(e,t)return e end
+function e.keys(t)
+o(1,t)
+return f(e.pairmap(u,t))
+end
+local function u(t,e)return e end
+function e.values(t)
+o(1,t)
+return f(e.pairmap(u,t))
+end
+local function u(e,t)return e,t end
+function e.index_map(a)
+t(1,a)
+return d(e.pairmap(u,a),l)
+end
+local function u(t,e)return true,e end
+function e.makeset(a)
+t(1,a)
+return d(e.pairmap(u,a),k)
+end
+function e.merge(i,t,s)
+o(1,i)
+o(2,t)
+local e={}
+for a,o in a(i)do
+if s or t[a]then e[a]=o end
+end
+if s then
+for t,a in a(t)do
+e[t]=a
+end
+end
+return n(e,i,l)
+end
+function e.difference(e,t,i)
+o(1,e)
+o(2,t)
+local o={}
+for e,a in a(e)do
+if not t[e]then o[e]=a end
+end
+if i then
+for t,a in a(t)do
+if not e[t]then o[t]=a end
+end
+end
+return n(o,e,l)
+end
+function e.count_map(a,o)
+t(1,a)
+local t,n={},{}
+o=i(2,o)
+local s=#a
+for i=1,#a do
+local e=a[i]
+if not n[e]then
+n[e]=true
+t[e]=1
+for i=i+1,s do
+local a=a[i]
+if o and o(e,a)or e==a then
+t[e]=t[e]+1
+n[a]=true
+end
+end
+end
+end
+return d(t,l)
+end
+function e.filter(e,a,h)
+t(1,e)
+a=i(2,a)
+local o,t={},1
+for i=1,#e do
+local e=e[i]
+if a(e,h)then
+o[t]=e
+t=t+1
+end
+end
+return n(o,e,s)
+end
+function e.zip(...)
+return e.mapn(function(...)return{...}end,...)
+end
+local d
+function d(s,o,a,t,n,h)
+a=a or 1
+t=t or 1
+local i
+if not n then
+n=#o
+i=#o
+else
+i=t+y(n-1,#o-t)
+end
+if s==o then
+if a>t and i>=a then
+o=e.sub(o,t,n)
+t=1;i=#o
+end
+end
+for e=t,i do
+s[a]=o[e]
+a=a+1
+end
+if h then
+e.clear(s,a)
+end
+return s
+end
+function e.icopy(a,e,o,i,n)
+t(1,a)
+t(2,e)
+return d(a,e,o,i,n,true)
+end
+function e.move(a,e,o,i,n)
+t(1,a)
+t(2,e)
+return d(a,e,o,i,n,false)
+end
+function e._normalize_slice(a,t,e)
+local a=#a
+if not t then t=1 end
+if t<0 then t=a+t+1 end
+if not e then e=a end
+if e<0 then e=a+1+e end
+return t,e
+end
+function e.sub(a,i,o)
+t(1,a)
+i,o=e._normalize_slice(a,i,o)
+local e={}
+for t=i,o do b(e,a[t])end
+return n(e,a,s)
+end
+function e.set(e,i,a,o)
+t(1,e)
+a,o=a or 1,o or#e
+if h.is_callable(i)then
+for t=a,o do
+e[t]=i(t)
+end
+else
+for t=a,o do
+e[t]=i
+end
+end
+end
+function e.new(o,a)
+local t={}
+e.set(t,a,1,o)
+return t
+end
+function e.clear(t,e)
+e=e or 1
+for e=e,#t do w(t)end
+end
+function e.insertvalues(e,...)
+p(1,e,'table')
+local a,t
+if q('#',...)==1 then
+a,t=#e+1,...
+else
+a,t=...
+end
+if#t>0 then
+for a=#e,a,-1 do
+e[a+#t]=e[a]
+end
+local o=1-a
+for a=a,a+#t-1 do
+e[a]=t[a+o]
+end
+end
+return e
+end
+function e.removevalues(a,t,o)
+p(1,a,'table')
+t,o=e._normalize_slice(a,t,o)
+for e=t,o do
+w(a,t)
+end
+return a
+end
+local t
+t=function(e,i,o)
+for t,e in a(e)do
+if e==i then return t end
+end
+for a,e in a(e)do
+if not o[e]and r(e)=='table'then
+o[e]=true
+local e=t(e,i,o)
+if e then
+e=g(e)
+if r(a)~='string'then
+return'['..a..']'..e
+else
+return a..'.'..e
+end
+end
+end
+end
+end
+function e.search(e,n,i)
+o(1,e)
+local o={[e]=true}
+if i then
+for t,e in a(i)do o[e]=true end
+end
+return t(e,n,o)
+end
+return e
+]===================],"CoolisOS/bin/utils/pl/utils.lua",[===================[local o,e,e=string.format,string.gsub,string.byte
+local e=os.clock
+local a=io.stdout
+local s=table.insert
+local e={}
+local e={}
+e._VERSION="1.1.0"
+local i=rawget(_G,'setfenv')
+e.lua51=i
+if not i then
+unpack=table.unpack
+loadstring=load
+end
+e.dir_separator='/'
+function e.quit(t,...)
+if type(t)=='string'then
+e.fprintf(io.stderr,t,...)
+t=-1
+else
+e.fprintf(io.stderr,...)
+end
+io.stderr:write('\n')
+os.exit(t)
+end
+function e.printf(t,...)
+e.assert_string(1,t)
+e.fprintf(a,t,...)
+end
+function e.fprintf(a,t,...)
+e.assert_string(2,t)
+a:write(o(t,...))
+end
+local function h(a,t,i,n)
+local o=rawget(a,t)
+if o and t~='_M'and t~='_NAME'and t~='_PACKAGE'and t~='_VERSION'then
+e.printf("warning: '%s.%s' overrides existing symbol\n",n,t)
+end
+rawset(a,t,i)
+end
+local function n(e,a)
+for t,e in pairs(e)do
+if e==a then return t end
+end
+return'?'
+end
+local o={}
+function e.import(t,a)
+a=a or _G
+t=t or e
+if type(t)=='string'then
+t=require(t)
+end
+local i=n(a,t)
+if o[t]then return end
+o[t]=i
+for e,t in pairs(t)do
+h(a,e,t,i)
+end
+end
+e.patterns={
+FLOAT='[%+%-%d]%d*%.?%d*[eE]?[%+%-]?%d*',
+INTEGER='[+%-%d]%d*',
+IDEN='[%a_][%w_]*',
+FILE='[%a%.\\][:%][%w%._%-\\]*'
+}
+function e.escape(t)
+e.assert_string(1,t)
+return(t:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]','%%%1'))
+end
+function e.choose(t,e,a)
+if t then return e
+else return a
+end
+end
+local n
+function e.readfile(t,a)
+local a=a and'b'or''
+e.assert_string(1,t)
+local t,a=io.open(t,'r'..a)
+if not t then return e.raise(a)end
+local e,a=t:read('*a')
+t:close()
+if not e then return n(a)end
+return e
+end
+function e.writefile(a,t)
+e.assert_string(1,a)
+e.assert_string(2,t)
+local e,a=io.open(a,'w')
+if not e then return n(a)end
+e:write(t)
+e:close()
+return true
+end
+function e.readlines(t)
+e.assert_string(1,t)
+local e,t=io.open(t,'r')
+if not e then return n(t)end
+local t={}
+for a in e:lines()do
+s(t,a)
+end
+e:close()
+return t
+end
+function e.split(t,o,h,s)
+e.assert_string(1,t)
+local r,i,n=string.find,string.sub,table.insert
+local a,e=1,{}
+if not o then o='%s+'end
+if o==''then return{t}end
+while true do
+local o,h=r(t,o,a,h)
+if not o then
+local t=i(t,a)
+if t~=''then n(e,t)end
+if#e==1 and e[1]==''then
+return{}
+else
+return e
+end
+end
+n(e,i(t,a,o-1))
+if s and#e==s then
+e[#e]=i(t,a)
+return e
+end
+a=h+1
+end
+end
+function e.splitv(a,t)
+return unpack(e.split(a,t))
+end
+function e.array_tostring(o,e,t)
+e,t=e or{},t or tostring
+for a=1,#o do
+e[a]=t(o[a],a)
+end
+return e
+end
+local s=load
+if e.lua51 then
+function e.load(t,i,e,o)
+local e,a
+if type(t)=='string'then
+e,a=loadstring(t,i)
+else
+e,a=s(t,i)
+end
+if e and o then setfenv(e,o)end
+return e,a
+end
+end
+function e.execute(e)
+local e,a,t=os.execute(e)
+if i then
+return e==0,e
+else
+return e,t
+end
+end
+if i then
+function table.pack(...)
+local e=select('#',...)
+return{n=e;...}
+end
+local t='/'
+function e.searchpath(e,a)
+e=e:gsub('%.',t)
+for t in a:gmatch('[^;]+')do
+local t=t:gsub('?',e)
+local e=io.open(t,'r')
+if e then e:close();return t end
+end
+end
+end
+if not table.pack then table.pack=_G.pack end
+if not rawget(_G,"pack")then _G.pack=table.pack end
+function e.memoize(e)
+return setmetatable({},{
+__index=function(a,t,...)
+local e=e(t,...)
+a[t]=e
+return e
+end,
+__call=function(t,e)return t[e]end
+})
+end
+function e.is_callable(e)
+return type(e)=='function'or getmetatable(e)and getmetatable(e).__call
+end
+function e.is_type(t,e)
+if type(e)=='string'then return type(t)==e end
+local t=getmetatable(t)
+return e==t
+end
+local a=getmetatable(io.stdout)
+function e.type(t)
+local e=type(t)
+if e=='table'or e=='userdata'then
+local t=getmetatable(t)
+if t==a then
+return'file'
+else
+return t._name or"unknown "..e
+end
+else
+return e
+end
+end
+function e.is_integer(t)
+return math.ceil(t)==t
+end
+e.stdmt={
+List={_name='List'},Map={_name='Map'},
+Set={_name='Set'},MultiMap={_name='MultiMap'}
+}
+local h={}
+function e.add_function_factory(t,e)
+h[t]=e
+end
+local function i(t)
+local a=e.raise
+if t:find'^|'or t:find'_'then
+local e,o=t:match'|([^|]*)|(.+)'
+if t:find'_'then
+e='_'
+o=t
+else
+if not e then return a'bad string lambda'end
+end
+local e='return function('..e..') return '..o..' end'
+local e,t=loadstring(e)
+if not e then return a(t)end
+e=e()
+return e
+else return a'not a string lambda'
+end
+end
+e.string_lambda=e.memoize(i)
+local s
+function e.function_arg(i,t,o)
+e.assert_arg(1,i,'number')
+local a=type(t)
+if a=='function'then return t end
+if a=='string'then
+if not s then s=require'pl.operator'.optable end
+local a=s[t]
+if a then return a end
+local e,a=e.string_lambda(t)
+if not e then error(a..': '..t)end
+return e
+elseif a=='table'or a=='userdata'then
+local e=getmetatable(t)
+if not e then error('not a callable object',2)end
+local a=h[e]
+if not a then
+if not e.__call then error('not a callable object',2)end
+return t
+else
+return a(t)
+end
+end
+if not o then o=" must be callable"end
+if i>0 then
+error("argument "..i..": "..o,2)
+else
+error(o,2)
+end
+end
+function e.bind1(t,a)
+t=e.function_arg(1,t)
+return function(...)return t(a,...)end
+end
+function e.bind2(t,a)
+t=e.function_arg(1,t)
+return function(e,...)return t(e,a,...)end
+end
+function e.assert_arg(t,e,a,i,n,o)
+if type(e)~=a then
+error(("argument %d expected a '%s', got a '%s'"):format(t,a,type(e)),o or 2)
+end
+if i and not i(e)then
+error(("argument %d: '%s' %s"):format(t,e,n),o or 2)
+end
+end
+function e.assert_string(t,a)
+e.assert_arg(t,a,'string',nil,nil,3)
+end
+local t='default'
+function e.on_error(a)
+if({['default']=1,['quit']=2,['error']=3})[a]then
+t=a
+else
+if t=='default'then t='error'end
+e.raise("Bad argument expected string; 'default', 'quit', or 'error'. Got '"..tostring(a).."'")
+end
+end
+function e.raise(a)
+if t=='default'then return nil,a
+elseif t=='quit'then e.quit(a)
+else error(a,2)
+end
+end
+n=e.raise
+return e
+]===================],"CoolisOS/bin/utils/search",true,"CoolisOS/bin/utils/search/init.lua",[===================[local o=fs
+local i=string
+local l=getfenv()
+setmetatable(l,nil)
+function iterTree(a,h)
+a=a or''
+if a=='/'then a=''end
+local i={0}
+local n={0}
+local t={{a,o.list(a),{}}}
+local e=1
+local s
+return function()
+repeat
+i[e]=i[e]+1
+name=t[e][2][i[e]]
+if name==nil then
+if(not t[e][4])and t[e][3][1]then
+t[e][4]=true
+t[e][2],t[e][3]=t[e][3],t[e][2]
+i[e]=0
+else
+e=e-1
+if e==0 then return end
+a=t[e][1]
+end
+else
+s=t[e][1]..'/'..name
+if o.isDir(s)then
+if t[e][4]then
+if h~=e then
+e=e+1
+a=s
+t[e]={a,o.list(a),{}}
+i[e]=0
+n[e]=0
+end
+else
+n[e]=n[e]+1
+t[e][3][n[e]]=name
+break
+end
+else
+break
+end
+end
+until false
+return a..'/'..name
+end
+end
+function iterFiles(e,t)
+local t=iterTree(e,t)
+local e
+return function()
+repeat
+e=t()
+if e then
+if not o.isDir(e)then
+return e
+end
+else
+return
+end
+until false
+end
+end
+function iterDir(t,e)
+local t=iterTree(t,e)
+local e
+return function()
+repeat
+e=t()
+if e then
+if o.isDir(e)then
+return e
+end
+else
+return
+end
+until false
+end
+end
+local function d(o)
+local t="^"
+local e=0
+local a
+local function r()
+if a=='\\'then
+e=e+1;a=i.sub(o,e,e)
+if a==''then
+t='[^]'
+return false
+end
+end
+return true
+end
+local function n(e)
+return e:match("^%w$")and e or'%'..e
+end
+local function h()
+while 1 do
+if a==''then
+t='[^]'
+return false
+elseif a==']'then
+t=t..']'
+break
+else
+if not r()then break end
+local s=a
+e=e+1;a=i.sub(o,e,e)
+if a==''then
+t='[^]'
+return false
+elseif a=='-'then
+e=e+1;a=i.sub(o,e,e)
+if a==''then
+t='[^]'
+return false
+elseif a==']'then
+t=t..n(s)..'%-]'
+break
+else
+if not r()then break end
+t=t..n(s)..'-'..n(a)
+end
+elseif a==']'then
+t=t..n(s)..']'
+break
+else
+t=t..n(s)
+e=e-1
+end
+end
+e=e+1;a=i.sub(o,e,e)
+end
+return true
+end
+local function s()
+e=e+1;a=i.sub(o,e,e)
+if a==''or a==']'then
+t='[^]'
+return false
+elseif a=='^'or a=='!'then
+e=e+1;a=i.sub(o,e,e)
+if a==']'then
+else
+t=t..'[^'
+if not h()then return false end
+end
+else
+t=t..'['
+if not h()then return false end
+end
+return true
+end
+while 1 do
+e=e+1;a=i.sub(o,e,e)
+if a==''then
+t=t..'$'
+break
+elseif a=='#'then
+t=t..'.'
+elseif a=='*'then
+t=t..'.*'
+elseif a=='['then
+if not s()then break end
+elseif a=='\\'then
+e=e+1;a=i.sub(o,e,e)
+if a==''then
+t=t..'\\$'
+break
+end
+t=t..n(a)
+else
+t=t..n(a)
+end
+end
+return t
+end
+local function u(a)
+local o={}
+local e
+local t=0
+for a in i.gmatch(a,'[\\/]*([^/\\]+)[\\/]*')do
+if a:match('^[%w%s%.]*$')then
+e=e and e..'/'..a or a
+else
+t=t+1
+o[t]={e,d(a)}
+e=nil
+end
+end
+if e then
+if t==0 then
+t=t+1
+o[t]={e}
+else
+o[t][3]=e
+end
+end
+return o
+end
+local function c(n)
+local d=#n
+if d==0 then return function()return end end
+if d==1 and not n[1][2]and o.exists(n[1][1])then
+local e=false
+return function()
+if not e then
+e=true
+return n[1][1]
+else
+return
+end
+end
+end
+local a=n[1][1]
+local s={0}
+local r
+r={{a,o.isDir(a)and o.list(a)or{}}}
+local e=1
+local t
+local h
+return function()
+repeat
+s[e]=s[e]+1
+name=r[e][2][s[e]]
+if name==nil then
+s[e]=nil
+e=e-1
+if e==0 then return end
+a=r[e][1]
+else
+if i.match(name,n[e][2])then
+t=a..'/'..name
+if e==d then
+h=n[e][3]
+if h then
+t=t..'/'..h
+if o.exists(t)then
+path=t
+break
+end
+else
+path=t
+break
+end
+elseif o.isDir(t)then
+e=e+1
+h=n[e][1]
+if h then
+t=t..'/'..h
+if o.exists(t)then
+a=t
+r[e]={a,o.list(a)}
+s[e]=0
+else
+e=e-1
+end
+else
+a=t
+r[e]={a,o.list(a)}
+s[e]=0
+end
+end
+end
+end
+until false
+return path,s
+end
+end
+function iterGlob(e)
+return c(u(e))
+end
+searchGlob=function(e,t)
+e=i.gsub(e,'%?',t)
+local t=iterGlob(e)
+local e
+return function()
+repeat
+e=t()
+if e then
+if not o.isDir(e)then
+return e
+end
+else
+break
+end
+until false
+end
+end
+function getNameExpansion(e)
+local o,o,a,t=i.find(e,'([^%./\\]*)%.(.*)$')
+return a or e,t
+end
+function getDir(e)
+return i.match(e,'^(.*)/')or'/'
+end
+searchTree=function(e,t)
+if not e:match('%?')and o.isDir(e)then
+if e=='/'then e=''end
+local a=iterFiles(e)
+local e
+return function()
+repeat
+e=a()
+if e then
+if i.match(e,t..'$')and not i.match(e,'[^/]'..t..'$')then
+return e
+end
+else
+break
+end
+until false
+end
+else
+return function()end
+end
+end
+return l]===================],

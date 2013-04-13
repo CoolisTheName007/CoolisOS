@@ -11,7 +11,7 @@ for _,g in ipairs({'coroutine', 'io', 'math', 'string', 'table', 'os'}) do
   for k,v in pairs(G[g]) do globals[v] = g..'.'..k end end
 
 local function s(t, opts)
-  local name, indent, fatal = opts.name, opts.indent, opts.fatal
+  local name, indent, fatal,dname = opts.name, opts.indent, opts.fatal,opts.debug
   local sparse, custom, huge,dbg = opts.sparse, opts.custom, not opts.nohuge,opts.debug
   local space, maxl = (opts.compact and '' or ' '), (opts.maxlevel or math.huge)
   local iname, comm = '_'..(name or ''), opts.comment and (tonumber(opts.comment) or math.huge)
@@ -22,7 +22,8 @@ local function s(t, opts)
   local function safestr(s) return type(s) == "number" and (huge and snum[tostring(s)] or s)
     or type(s) ~= "string" and tostring(s) -- escape NEWLINE/010 and EOF/026
     or ("%q"):format(s):gsub("\010","n"):gsub("\026","\\026") end
-  local function comment(s,l) return comm and (l or 0) < comm and ' --[['..tostring(s)..']]' or '' end
+  local function comment(s,l)
+    return comm and (l or 0) < comm and ' --[['..(dbg and type(s)~='string' and debug.getinfo(s) or tostring(s))..']]' or '' end
   local function globerr(s,l) return globals[s] and globals[s]..comment(s,l) or not fatal
     and safestr(select(2, pcall(tostring, s))) or error("Can't serialize "..tostring(s)) end
   local function safename(path, name) -- generates foo.bar, foo[3], or foo['b a r']
@@ -37,21 +38,18 @@ local function s(t, opts)
       -- sort numeric keys first: k[key] is non-nil for numeric keys
       return (k[a] and 0 or to[type(a)] or 'z')..(tostring(a):gsub("%d+",padnum))
            < (k[b] and 0 or to[type(b)] or 'z')..(tostring(b):gsub("%d+",padnum)) end) end
-  local function val2str(t, name, indent, insref, path, plainindex, level)
+  local function val2str(t, name, indent, insref, path, plainindex, level,pass)
     local ttype, level, mt = type(t), (level or 0), getmetatable(t)
     local spath, sname = safename(path, name)
     local tag = plainindex and
       ((type(name) == "number") and '' or name..space..'='..space) or
       (name ~= nil and sname..space..'='..space or '')
     if seen[t] then -- already seen this element
+      if dbg then return tag..comment(t,level) end
       table.insert(sref, spath..space..'='..space..seen[t])
       return tag..'nil'..comment('ref'..tostring(t), level) end
-    if mt then
-      if dbg and mt.__class then
-        seen[t] = insref or spath
-        t=debug.getinfo(t)
-        ttype = type(t)
-      elseif(mt.__serialize or mt.__tostring) then -- knows how to serialize itself
+    if mt and not dbg then
+      if mt.__serialize or mt.__tostring then -- knows how to serialize itself
         seen[t] = insref or spath
         if rawget(mt,'__serialize') then t = mt.__serialize(t) else t = tostring(t) end 
         ttype = type(t) -- new value falls through to be serialized
@@ -74,10 +72,10 @@ local function s(t, opts)
         elseif ktype == 'table' or ktype == 'function' or badtype[ktype] then
           if dbg then
               local s
-              if not seen[key] and not globals[key] then
-                local sname = safename(nil, gensym(key)) -- iname is table for local variables
-                s = '['..(val2str(key,nil,indent,insref,nil,false,level+1))..']'..comment(sname)
-                seen[key]=sname
+              if not (seen[key] or globals[key]) then
+                seen[key]=debug.getinfo(key)
+                s = '['..(val2str(key,nil,indent,nil,nil,false,level+1))..']'..comment(key,level)
+                
               end
               table.insert(out,val2str(value,s or (seen[key] or globals[key]),indent,insref,nil,true,level+1))
           else

@@ -88,15 +88,23 @@ local function fixes()
 end
 
 local function start()
-	debug.wrap(function()
-	local v=require'utils.Vec3'
+    debug.name(sched.running,'shell')
+	log.setLevel('sched','DEBUG')
+    log.store.instant=true
+    -- debug.wrap(function()
+    -- local p=function(s) return log('init','INFO','(%s) says %s',sched.running,s) end
+    -- debug.name(sched.task(function()
+    -- sleep(1)
+    -- p'a'
+    -- sleep(2)
+    -- p'b' end),'test'):run()
+    --end)()
 	local gui=require'kernel.gui'
     
 	local terminal=gui.Terminal(_G.term,sched.platform)
     local shell=require'kernel.gui.shell'
 	local Box=require'kernel.class.Box'
 	Box{terminal=terminal}:run(shell.main)
-	end)()
     sched.wait('end')
 end
 
@@ -117,25 +125,25 @@ local main=function()
 	
 	---load modules
 	do
-	rawset(_G,'log',require'kernel.log')
+    local function G(k,v)
+        rawset(_G,k,v)
+    end
+    G('util',require'kernel.util')
+	G('log',require'kernel.log')
 	log.store=require'kernel.log.store'
 	log.store.reset()
-    log.store.instant=true
-	log.setLevel('INFO')
     do
 	local serpent=require'utils.serpent'
-	local globals={
-		-- read=require'utils.tab_read',
-        pstring=function(this,max_level) return serpent.serialize(this,{debug=true,indent = '  ', sortkeys = true, comment = true,maxlevel=max_level}) end,
-		pprint=function(this,max_level)
+    G('pstring',function(this,max_level) return serpent.serialize(this,{debug=true,indent = '  ', sortkeys = true, comment = true,maxlevel=max_level}) end)
+    G('pprint',function(this,max_level)
 			debug.step_print(pstring(this))
-			-- print(stringify(this,docol, spacing_h, spacing_v, preindent,max_level))
-		end,
+		end)
+    G('debug',require'kernel.debug')
+    G('log',require'kernel.log')
+    local globals={
+		-- read=require'utils.tab_read',
 		net=require'kernel.net',
-		util=require'kernel.util',
-		sched=require'kernel.sched',
-		debug=require'kernel.debug',
-		log=require'kernel.log',
+		sched=require'kernel.sched',	
 	}
 	for i,v in pairs(require'kernel.class') do
 		globals[i]=v
@@ -143,7 +151,6 @@ local main=function()
 	for i,v in pairs(globals) do
 		rawset(_G,i,v)
 	end
-	sched.pipe=require'kernel.sched.pipe'
 	end
 	
 	
@@ -167,38 +174,6 @@ local main=function()
 	end
 	os.sleep=function(n) check('number',n) sched.wait(n) end
 	rawset(_G,'sleep',os.sleep)
-	os.pullEventRaw=function(filter)
-		check('string',filter)
-		if not sched.running then
-			return o_os.pullEventRaw(filter)
-		end
-		
-		local task=sched.running
-		task._queue=task._queue or {}
-		local q=task._queue
-		while q[1] do
-			local r=table.remove(q,1)
-			if filter==nil or r[1]==filter then
-				return unpack(r)
-			end
-		end
-		repeat
-			local r={sched.wait(sched.platform,filter or '*')}
-			table.remove(r,1)
-			if filter==nil or r[2]==filter then
-				return unpack(r)
-			else
-				table.insert(q,r)
-			end
-		until false
-	end
-	os.pullEvent=function( _sFilter )
-		local eventData = {os.pullEventRaw( _sFilter )}
-		if eventData[1] == "terminate" then
-			error("Terminated")
-		end
-		return unpack(eventData)
-	end
 	
 	rawset(_G,'os',os)
 	end
@@ -234,4 +209,5 @@ override(function()
 			printError(er)
 		end
     end
+    sleep(2)
 end)

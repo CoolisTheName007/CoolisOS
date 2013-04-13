@@ -5,7 +5,6 @@ function Opt:__init(t,typ,...)
     self.args={...}
 end
 function Opt:drop(dst,src,name)
-    log('Opt','INFO','%s','\n'..pstring{dst,src,name})
     local typ=self.typ
 	if typ=='req' then
 		if src==nil then error(string.format('parameter %s required',tostring(name)))

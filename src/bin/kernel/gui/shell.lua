@@ -4,8 +4,12 @@ local shell={}
 function shell.main()
 
 shell.env=getfenv()
-local char_in=sched.sigpipe()
-char_in:link(terminal,'char')
+local pin=sched.pipe()
+sched.task(sched.pump):run(
+terminal.pout,
+function(x) if x[2]=='char' or x[2]=='key' then table.remove(x,1) return x end end,
+pin)
+
 local term=terminal.term:wrap()
 function write( sText )
 	local w,h = term.getSize()		
@@ -174,7 +178,8 @@ local function get_env_matches(path, env)
     path = path or ""
 
     path = path:match("([%w_][%w_%.%:]*)$") or "" -- get the significant end part of the path (non alphanum are spliters...)
-    local p, s, l = path:match("(.-)([%.%:]?)([^%.%:]*)$") -- separate into sub path and leaf, getting the separator
+    if path=='' then path='.' end
+    local p, s, l = path:match("$(.-)([%.%:]?)([^%.%:]*)$") -- separate into sub path and leaf, getting the separator
     local t = pathutils.get(env, p)
     local funconly =  s == ":"
     local tr = {}
@@ -318,7 +323,7 @@ local function read( _sReplaceChar, _tHistory,_tEnv,_mode)
 	end
    
 	while true do
-			local sEvent, param = unpack(char_in:receive())
+			local sEvent, param = unpack(pin:receive())
 			if sEvent == "char" then
 					reset_matches()
 					sLine = string.sub( sLine, 1, nPos ) .. param .. string.sub( sLine, nPos + 1 )
@@ -437,7 +442,10 @@ local function read( _sReplaceChar, _tHistory,_tEnv,_mode)
 						-- End
 						nPos = string.len(sLine)
 						redraw()
-				end
+				elseif param == 29 then
+                        write'\n'
+                        return sLine..read(_sReplaceChar, _tHistory,_tEnv,_mode)
+                end
 			end
 	end
    
@@ -456,10 +464,8 @@ chars
 pout
 current line
 ]]
-
-
-
-local prompts={
+local function start()
+    local prompts={
 normal='>>>',
 complete='..',
 }
@@ -469,33 +475,66 @@ local modes={
 ['#']=function(s) --filesystem mode
 end,
 ['=']=function(s)--lua shell mode
-	local f=loadstring(s,'shell_in'..#input)
-	local r={pcall(f)}
-	local ok=table.remove(r,1)
-	if not ok then
-		local err=r[1]
-		if err:match"'end' expected" then
-			table.remove(input)
-			shell.text=shell.text..'\n'
-			shell.prompt=prompts.complete
-		else
-			printError(r[1])
-		end
-	else
-		table.insert(output,r[1])
-		for i=1,#r do print(r[i]) end
-	end
+	-- local f,er=loadstring(s,'shell_in'..#input)
+    -- if not f then printError(er) end
+	-- local r={pcall(f)}
+	-- local ok=table.remove(r,1)
+	-- if not ok then
+		-- local err=r[1]
+		-- if err:match"'end' expected" then
+			-- table.remove(input)
+			-- shell.text=shell.text..'\n'
+			-- shell.prompt=prompts.complete
+		-- else
+			-- printError(r[1])
+		-- end
+	-- else
+		-- table.insert(output,r[1])
+		-- for i=1,#r do print(r[i]) end
+	-- end
+	local name='in['..#input..']'
+    
+    local function get(s,name)
+        local func, e = loadstring( s,name)
+        if func then return func end
+        local func2, e2 = loadstring( "return "..s,name)
+        if func2 then return func2,nil,true end
+        return nil,(func and e or e2)
+    end
+	func,e,s=get(s,name)
+	if func then
+        setfenv( func, shell.env )
+        local t = { pcall( function() return func() end ) }
+        if t[1] then
+            table.remove(t,1)
+            local last=table.remove(t)
+        	print(table.concat(util.map_args(t,tostring),',')..tostring(last))
+        else
+        	printError( tResults[2] )
+        end
+    else
+    	printError( e )
+    end
+    
 end
 }
 local mode='='
+shell.prompt=prompts.normal
 repeat
-	local s=read( _sReplaceChar,input,shell.env,mode=='#' and true)
-	table.insert(input,s)
+    write(mode)
+	local s=read(nil,input,shell.env,mode=='#' and true)
+    table.insert(input,s)
 	if s:sub(1,1)=='$' then--mode change
 		mode=s:sub(2,2)
 		s=s:sub(3)
 	end
 	modes[mode](s)
 until false
+end
+
+debug.wrap(
+    start()
+)
+
 end
 return shell
