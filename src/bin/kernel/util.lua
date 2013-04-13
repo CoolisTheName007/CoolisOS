@@ -1253,8 +1253,8 @@ _.join = _.concat
 -- @name identity
 -- @tparam arg value a value
 -- @treturn arg the passed-in value
-function _.identity(value)
-  return value
+function _.identity(...)
+  return ...
 end
 
 --- Returns a version of `f` that runs only once. Successive calls will make `f`

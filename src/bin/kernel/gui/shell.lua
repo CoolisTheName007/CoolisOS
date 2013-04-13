@@ -145,7 +145,7 @@ do
 
 
 	function segments(path)
-		local t = {}    
+		local t = {} 
 		local index, newindex, elt = 1
 		repeat
 			newindex = path:find(".", index, true) or #path+1 --last round
@@ -173,17 +173,17 @@ do
 	pathutils.get=get
 end
 
-local function get_env_matches(path, env)
+function get_env_matches(path, env)
     env = env or _G
     path = path or ""
 
-    path = path:match("([%w_][%w_%.%:]*)$") or "" -- get the significant end part of the path (non alphanum are spliters...)
-    if path=='' then path='.' end
-    local p, s, l = path:match("$(.-)([%.%:]?)([^%.%:]*)$") -- separate into sub path and leaf, getting the separator
+    path = path:match("([%w_]?[%w_%.%:]*)$") or "" -- get the significant end part of the path (non alphanum are spliters...)
+    
+    
+    local p, s, l = path:match("(.-)([%.%:]?)([^%.%:]*)$") -- separate into sub path and leaf, getting the separator
     local t = pathutils.get(env, p)
     local funconly =  s == ":"
     local tr = {}
-
     local function copykeys(src, dst)
         if type(src) ~= 'table' then return end
         for k, v in pairs(src) do
@@ -222,7 +222,7 @@ local function get_env_matches(path, env)
     return r,l:len()
 end
 
-local function get_to_match(sLine,nPos)
+function get_to_match(sLine,nPos)
 	if sLine:sub(nPos,nPos)==' ' then
 		return ''
 	end
@@ -442,7 +442,7 @@ local function read( _sReplaceChar, _tHistory,_tEnv,_mode)
 						-- End
 						nPos = string.len(sLine)
 						redraw()
-				elseif param == 29 then
+				elseif param == keys.leftAlt then
                         write'\n'
                         return sLine..read(_sReplaceChar, _tHistory,_tEnv,_mode)
                 end
@@ -470,7 +470,7 @@ normal='>>>',
 complete='..',
 }
 input={}
-output={}
+output=setmetatable({},{__index=function(t,k) return unpack(rawget(t,k)) end})
 local modes={
 ['#']=function(s) --filesystem mode
 end,
@@ -495,22 +495,28 @@ end,
 	local name='in['..#input..']'
     
     local function get(s,name)
-        local func, e = loadstring( s,name)
-        if func then return func end
-        local func2, e2 = loadstring( "return "..s,name)
-        if func2 then return func2,nil,true end
-        return nil,(func and e or e2)
+        local f=loadstring(s,name)
+        local func, e = loadstring( "return "..s,name)
+        if func then return func,e,not f end
+        return nil,e
     end
-	func,e,s=get(s,name)
+	local func,e,stat=get(s,name)
 	if func then
         setfenv( func, shell.env )
-        local t = { pcall( function() return func() end ) }
+        local t = { pcall(func) }
         if t[1] then
             table.remove(t,1)
-            local last=table.remove(t)
-        	print(table.concat(util.map_args(t,tostring),',')..tostring(last))
+            table.insert(output,t)
+            local n=table.maxn(t)
+            if n~=0 or stat then
+                s=tostring(t[1])
+                for i=2,n do
+                    s=s..','..tostring(t[i])
+                end
+                print(s)
+            end
         else
-        	printError( tResults[2] )
+        	printError( t[2] )
         end
     else
     	printError( e )
@@ -521,7 +527,7 @@ end
 local mode='='
 shell.prompt=prompts.normal
 repeat
-    write(mode)
+    write(mode..shell.prompt)
 	local s=read(nil,input,shell.env,mode=='#' and true)
     table.insert(input,s)
 	if s:sub(1,1)=='$' then--mode change
